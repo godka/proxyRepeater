@@ -1,9 +1,7 @@
 #Create project source code
 ###
     git clone https://github.com/aesirteam/proxyRepeater.git
-    cd ./proxyRepeater
-    git clone https://github.com/aesirteam/srs-librtmp.git
-    ./genMakefiles linux
+    ./genMakefiles mingw
     make
 #Run Program
 ###

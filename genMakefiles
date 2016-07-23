@@ -1,0 +1,59 @@
+#!/bin/sh
+
+usage() {
+    echo "Usage: $0 <os-platform>"
+    exit 1
+}
+
+if [ $# -ne 1 ]; then
+    usage $*
+fi
+
+Pro_Dir=$(pwd)
+if [ ! -d  $Pro_Dir/objs ]; then
+    mkdir $Pro_Dir/objs
+fi
+
+if [ ! -d  $Pro_Dir/srs-librtmp ]; then
+    git clone https://github.com/aesirteam/srs-librtmp.git
+fi
+
+cd live555/liveMedia
+/bin/rm -f Makefile
+cat Makefile.head $Pro_Dir/config.$1 Makefile.tail > Makefile
+chmod a-w Makefile
+
+cd ../groupsock
+/bin/rm -f Makefile
+cat Makefile.head $Pro_Dir/config.$1 Makefile.tail > Makefile
+chmod a-w Makefile
+
+cd ../UsageEnvironment
+/bin/rm -f Makefile
+cat Makefile.head $Pro_Dir/config.$1 Makefile.tail > Makefile
+chmod a-w Makefile
+
+cd ../BasicUsageEnvironment
+/bin/rm -f Makefile
+cat Makefile.head $Pro_Dir/config.$1 Makefile.tail > Makefile
+chmod a-w Makefile
+
+cd $Pro_Dir/srs-librtmp
+/bin/rm -f Makefile
+cat Makefile.tail > Makefile
+chmod a-w Makefile
+
+cd ./objs
+/bin/rm -f Makefile
+cat $Pro_Dir/config.$1 Makefile.tail > Makefile
+chmod a-w Makefile
+
+cd $Pro_Dir/src
+/bin/rm -f Makefile
+cat $Pro_Dir/config.$1 Makefile.tail > Makefile
+chmod a-w Makefile
+
+cd $Pro_Dir
+/bin/rm -f Makefile
+cat Makefile.head config.$1 Makefile.tail > Makefile
+chmod a-w Makefile

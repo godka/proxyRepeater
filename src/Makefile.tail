@@ -1,0 +1,26 @@
+LIVE555 = ../live555
+LIVE555_DIR = liveMedia groupsock BasicUsageEnvironment UsageEnvironment
+LIVE555_INC = $(foreach n, $(LIVE555_DIR), -I$(LIVE555)/$(n)/include) 
+LIVE555_LIB = $(foreach n, $(LIVE555_DIR), $(LIVE555)/$(n)/lib$(n).a) 
+
+SRS = ../srs-librtmp/objs
+SRS_INC = -I$(SRS)/include
+SRS_LIB = $(SRS)/lib/srs_librtmp.a
+
+COMPILE_OPTS = $(LIVE555_INC) $(SRS_INC) -fPIC -I. -O2 -DSOCKLEN_T=socklen_t -D_LARGEFILE_SOURCE=1
+LIBS = $(LIVE555_LIB) $(SRS_LIB)
+
+PROGS = testSrslibrtmp
+
+all: $(PROGS)
+
+.$(C).$(OBJ) :
+	$(C_COMPILER) -c $(LIVE555_INC) $(SRS_INC) $(C_FLAGS) $<
+.$(CPP).$(OBJ) :
+	$(CPLUSPLUS_COMPILER) -c $(LIVE555_INC) $(SRS_INC) $(CPLUSPLUS_FLAGS) $<
+
+testSrslibrtmp : testSrslibrtmp.$(OBJ) $(LIBS)
+	$(CPLUSPLUS_COMPILER) -o ../objs/$@ $< $(LIBS)
+
+clean :
+	@rm -rf *.$(OBJ) ../objs/$(PROGS) core *.core *~ include/*~
