@@ -1,13 +1,13 @@
 #Create project source code
 ###
-  git clone https://github.com/aesirteam/proxyRepeater.git
-  cd ./proxyRepeater
-  git clone https://github.com/aesirteam/srs-librtmp.git
-  ./genMakefiles linux
-  make
+    git clone https://github.com/aesirteam/proxyRepeater.git
+    cd ./proxyRepeater
+    git clone https://github.com/aesirteam/srs-librtmp.git
+    ./genMakefiles linux
+    make
 #Run Program
 ###
-  ./objs/testSrslibrtmp
+    ./objs/testSrslibrtmp
 #Clean project
 ###
-  make distclean
+    make distclean
