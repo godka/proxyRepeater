@@ -9,21 +9,13 @@
 #define RTSP_CLIENT_VERBOSITY_LEVEL 0
 
 //MAX width*height*1.5  .e.g  IDR -> 1280x720x1.5
-#define DUMMY_SINK_RECEIVE_BUFFER_SIZE  150000//(1024*1024+512*1024)
+#define DUMMY_SINK_RECEIVE_BUFFER_SIZE  (1024*1024+512*1024)
 
 #define CHECK_ALIVE_TASK_TIMER_INTERVAL 30*1000*1000
 
 //#define DEBUG
 
-UsageEnvironment& operator << (UsageEnvironment& env, const RTSPClient& rtspClient) {
-        return env << "[URL:\"" << rtspClient.url() << "\"]: ";
-}
-
-UsageEnvironment& operator<< (UsageEnvironment& env, const MediaSubsession& subsession) {
-        return env << subsession.mediumName() << "/" << subsession.codecName();
-}
-
-void openURL(UsageEnvironment& env, char const* progName, char const* rtspURL);
+void openURL(UsageEnvironment& env, char const* rtspURL, char const* rtmpUrl);
 
 void continueAfterDESCRIBE(RTSPClient* rtspClient, int resultCode, char* resultString);
 void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultString);
@@ -36,7 +28,7 @@ void subsessionByeHandler(void* clientData);
 void streamTimerHandler(void* clientData);
 void sendLivenessCommandHandler(void* clientData);
 
-void usage(UsageEnvironment& env, char const* progName);
+void usage(UsageEnvironment& env);
 
 void announceStream(RTSPClient* rtspClient);
 void addStartCode(u_int8_t*& dest, u_int8_t* src, unsigned size);
@@ -66,27 +58,8 @@ public:
         MediaSubsession* subsession;
         TaskToken streamTimerTask;
         TaskToken checkAliveTimerTask;
-        void* rtmpClient;
         double duration;
-        char streamName[30];
-        char const* rtmpUrl;
-        char const* rtspUrl;
-};
-
-class ourRTMPClient {
-public:
-        static ourRTMPClient* createNew(UsageEnvironment& env, char const* rtmpUrl);
-protected:
-        ourRTMPClient(UsageEnvironment& env, char const* rtmpUrl);
-        virtual ~ourRTMPClient();
-public:
-        void sendH264FramePacket(UsageEnvironment& env, u_int8_t* data, unsigned size, unsigned timestamp);
-        Boolean isConnected;
-        char const* Url;
-private:
-        srs_rtmp_t rtmp;
-        unsigned hTimestamp;
-        u_int32_t dts, pts;
+        void* rtmpClient;
 };
 
 class ourRTSPClient: public RTSPClient {
@@ -105,11 +78,29 @@ public:
         StreamClientState scs;
 };
 
+class ourRTMPClient {
+public:
+        static ourRTMPClient* createNew(UsageEnvironment& env, char const* rtmpUrl);
+protected:
+        ourRTMPClient(UsageEnvironment& env, char const* rtmpUrl);
+        virtual ~ourRTMPClient();
+public:
+        void sendH264FramePacket(UsageEnvironment& env, u_int8_t* data, unsigned size, unsigned timestamp);
+        void destroy(UsageEnvironment& env);
+        Boolean isConnected;
+        char const* url() const { return fUrl; }
+private:
+        srs_rtmp_t rtmp;
+        unsigned hTimestamp;
+        u_int32_t dts, pts;
+        char* fUrl;
+};
+
 class DummySink: public MediaSink {
 public:
-		static DummySink* createNew(UsageEnvironment& env, MediaSubsession& subsession, ourRTMPClient& client);
+        static DummySink* createNew(UsageEnvironment& env, MediaSubsession& subsession, ourRTMPClient& client);
 private:
-		DummySink(UsageEnvironment& env, MediaSubsession& subsession, ourRTMPClient& client);
+        DummySink(UsageEnvironment& env, MediaSubsession& subsession, ourRTMPClient& client);
         // called only by "createNew()"
         virtual ~DummySink();
 
@@ -134,5 +125,17 @@ private:
         MediaSubsession& fSubsession;
         ourRTMPClient& rtmpClient;
 };
+
+UsageEnvironment& operator << (UsageEnvironment& env, const RTSPClient& rtspClient) {
+        return env << "[URL:\"" << rtspClient.url() << "\"]: ";
+}
+
+UsageEnvironment& operator<< (UsageEnvironment& env, const MediaSubsession& subsession) {
+        return env << subsession.mediumName() << "/" << subsession.codecName();
+}
+
+UsageEnvironment& operator<< (UsageEnvironment& env, const ourRTMPClient& rtmpClient) {
+        return env << "[URL:\"" << rtmpClient.url() << "\"]: ";
+}
 
 #endif /* __TEST_SRS_LIBRTMP_HH_ */
