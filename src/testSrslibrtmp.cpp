@@ -155,22 +155,10 @@ void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultStri
 				SPropRecord* r = parseSPropParameterSets(spropStr, numSPropRecords);
 				for(unsigned n=0; n<numSPropRecords; ++n) {
 					u_int8_t nal_unit_type = r[n].sPropBytes[0] & 0x1F;
-					if (nal_unit_type == 7) {
-						dummySink->spsSize = r[n].sPropLength+4;
-						addStartCode(dummySink->sps, r[n].sPropBytes, dummySink->spsSize);
-						/*
-						unsigned profile_idc, level_idc, width, height, _fps;
-						analyze_h264_seq_parameter_set_data(dummySink->sps+4, r[n].sPropLength, profile_idc, level_idc, width, height, dummySink->fps);
-						if (_fps > 0) dummySink->fps = _fps;
-
-#ifdef DEBUG
-						env << "\n\n\tprofile_idc: " << profile_idc << "\tlevel_idc: " << level_idc  \
-						<< "\twidth: " << width << "\theight: " << height << "\tfps: " << dummySink->fps << "\n";
-#endif
-*/
-					} else if (nal_unit_type == 8) {
-						dummySink->ppsSize = r[n].sPropLength+4;
-						addStartCode(dummySink->pps, r[n].sPropBytes, dummySink->ppsSize);
+					if(dummySink->isSPS(nal_unit_type)){
+						dummySink->sendSpsPacket(r[n].sPropBytes, r[n].sPropLength);
+					} else if(dummySink->isPPS(nal_unit_type)) {
+						dummySink->sendPpsPacket(r[n].sPropBytes, r[n].sPropLength);
 					}
 				}
 				delete[] r;
@@ -233,8 +221,8 @@ void shutdownStream(RTSPClient* rtspClient, int exitCode) {
 	char const* rtspUrl = strDup(rtspClient->url());
 	char const* rtmpUrl = ((ourRTMPClient*)scs.rtmpClient)->url();
 
-	((ourRTMPClient*)scs.rtmpClient)->destroy(env);
-	scs.rtmpClient =  NULL;
+	((ourRTMPClient*)scs.rtmpClient)->close();
+	scs.rtmpClient = NULL;
 
 	if (scs.session != NULL) {
 		Boolean someSubsessionsWereActive = False;
@@ -265,7 +253,8 @@ void shutdownStream(RTSPClient* rtspClient, int exitCode) {
 	if (--rtspClientCount == 0) {
 		//exit(exitCode);
 	}
-	usleep(5 * 1000 * 1000);
+
+	//usleep(5 * 1000 * 1000);
 	openURL(env, rtspUrl, rtmpUrl);
 }
 
@@ -323,20 +312,6 @@ void announceStream(RTSPClient* rtspClient) {
 	env << *rtspClient << "Publish the stream. endpoint:\"" << ((ourRTMPClient*)scs.rtmpClient)->url() << "\"\n";
 }
 
-void addStartCode(u_int8_t*& dest, u_int8_t* src, unsigned size) {
-	if(src != NULL) {
-		delete[] dest;
-		dest = new u_int8_t[size];
-	}
-
-	dest[0] = 0;	dest[1] = 0;
-	dest[2] = 0;	dest[3] = 1;
-
-	if(src != NULL) {
-		memmove(dest+4, src, size-4);
-	}
-}
-
 // Implementation of "ourRTSPClient":
 ourRTSPClient* ourRTSPClient::createNew(UsageEnvironment& env, char const* rtspURL,
 		int verbosityLevel, char const* applicationName, portNumBits tunnelOverHTTPPortNum) {
@@ -371,16 +346,13 @@ DummySink* DummySink::createNew(UsageEnvironment& env, MediaSubsession& subsessi
 	return  new DummySink(env, subsession, client);
 }
 
-DummySink::DummySink(UsageEnvironment& env, MediaSubsession& subsession, ourRTMPClient& client)
-	: MediaSink(env), fSubsession(subsession), rtmpClient(client), fHaveWrittenFirstFrame(True) {
-	sps = new u_int8_t[1];
- 	pps = new u_int8_t[1];
- 	fReceiveBuffer = new u_int8_t[DUMMY_SINK_RECEIVE_BUFFER_SIZE];
+DummySink::DummySink(UsageEnvironment& env, MediaSubsession& subsession, ourRTMPClient& client) :
+		MediaSink(env), fSubsession(subsession), rtmpClient(client) {
+	fHaveWrittenFirstFrame = True;
+	fReceiveBuffer = new u_int8_t[DUMMY_SINK_RECEIVE_BUFFER_SIZE];
 }
 
 DummySink::~DummySink() {
-	delete[] sps;
-	delete[] pps;
 	delete[] fReceiveBuffer;
 }
 
@@ -396,42 +368,34 @@ void DummySink::afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes
 	u_int8_t nal_unit_type = fReceiveBuffer[4] & 0x1F; //0xFF;
 	unsigned timestamp = presentationTime.tv_sec*1000 + presentationTime.tv_usec/1000;
 	do {
+		if(!rtmpClient.isConnected) {
+			fHaveWrittenFirstFrame = True;
+			break;
+		}
+
 		if(fHaveWrittenFirstFrame) {
 			if(!isSPS(nal_unit_type) && !isPPS(nal_unit_type) && !isIDR(nal_unit_type))
 				break;
 			else if(isSPS(nal_unit_type)) {
-				spsSize = frameSize+4;
-				addStartCode(sps, fReceiveBuffer+4, spsSize);
-				//unsigned profile_idc, level_idc, width, height, _fps;
-				//analyze_h264_seq_parameter_set_data(sps+4, frameSize, profile_idc, level_idc, width, height, _fps);
-				//if(_fps > 0) fps = _fps;
+				sendSpsPacket(fReceiveBuffer+4, frameSize, timestamp);
+				break;
 			} else if(isPPS(nal_unit_type)) {
-				ppsSize = frameSize+4;
-				addStartCode(pps, fReceiveBuffer+4, ppsSize);
+				sendPpsPacket(fReceiveBuffer+4, frameSize, timestamp);
+				fHaveWrittenFirstFrame = False;
+				break;
 			} else if(isIDR(nal_unit_type)) {
-				if(!rtmpClient.isConnected) {
-					rtmpClient = *(ourRTMPClient::createNew(envir(), rtmpClient.url()));
-					do {
-						if(rtmpClient.isConnected)
-							break;
-						usleep(1000*1000);
-					} while(1);
-				}
-				rtmpClient.sendH264FramePacket(envir(), sps, spsSize, timestamp);
-				rtmpClient.sendH264FramePacket(envir(), pps, ppsSize, timestamp);
+				//send sdp: sprop-parameter-sets
+				rtmpClient.sendH264FramePacket(fSps, fSpsSize, timestamp);
+				rtmpClient.sendH264FramePacket(fPps, fPpsSize, timestamp);
 				fHaveWrittenFirstFrame = False;
 			}
 		}
 
 		if (strcasecmp(fSubsession.mediumName(), "video" ) == 0 &&
 				(isIDR(nal_unit_type) || isNonIDR(nal_unit_type))) {
-			if(!rtmpClient.isConnected) {
-				fHaveWrittenFirstFrame = True;
-				break;
-			}
-			unsigned size = frameSize+4;
-			addStartCode(fReceiveBuffer, NULL, size);
-			rtmpClient.sendH264FramePacket(envir(), fReceiveBuffer, size, timestamp);
+			fReceiveBuffer[0] = 0;	fReceiveBuffer[1] = 0;
+			fReceiveBuffer[2] = 0;	fReceiveBuffer[3] = 1;
+			rtmpClient.sendH264FramePacket(fReceiveBuffer, frameSize+4, timestamp);
 		}
 
 	} while(0);
@@ -449,27 +413,34 @@ Boolean DummySink::continuePlaying() {
 }
 
 //Implementation of "ourRTMPClient":
-ourRTMPClient* ourRTMPClient::createNew(UsageEnvironment& env, char const* rtmpUrl) {
-	return new ourRTMPClient(env, rtmpUrl);
+ourRTMPClient* ourRTMPClient::createNew(UsageEnvironment& _env, char const* rtmpUrl) {
+	return new ourRTMPClient(_env, rtmpUrl);
 }
 
-ourRTMPClient::ourRTMPClient(UsageEnvironment& env, char const* rtmpUrl)
-	: rtmp(NULL), hTimestamp(0), dts(0), pts(0)  {
+ourRTMPClient::ourRTMPClient(UsageEnvironment& _env, char const* rtmpUrl)
+	: env(_env), rtmp(NULL), fTimestamp(0), dts(0), pts(0)  {
 	isConnected = False;
 	fUrl = strDup(rtmpUrl);
+	connect();
+}
 
-	rtmp = srs_rtmp_create(rtmpUrl);
+ourRTMPClient::~ourRTMPClient() {
+	delete[] fUrl;
+}
+
+void ourRTMPClient::connect() {
+	rtmp = srs_rtmp_create(fUrl);
 	do {
 		if (srs_rtmp_handshake(rtmp) != 0) {
-			env << *this <<"simple handshake failed." << "\n";
-        	break;
-    	}
- #ifdef DEBUG
+			env << *this << "simple handshake failed." << "\n";
+			break;
+		}
+#ifdef DEBUG
 		env << *this <<"simple handshake success" << "\n";
- #endif
+#endif
 
 		if (srs_rtmp_connect_app(rtmp) != 0) {
-			env <<  *this << "connect vhost/app failed." << "\n";
+			env << *this << "connect vhost/app failed." << "\n";
 			break;
 		}
 #ifdef DEBUG
@@ -478,7 +449,7 @@ ourRTMPClient::ourRTMPClient(UsageEnvironment& env, char const* rtmpUrl)
 
 		int ret = srs_rtmp_publish_stream(rtmp);
 		if (ret != 0) {
-			env << *this <<"publish stream failed.(ret=" << ret << ")\n";
+			env << *this << "publish stream failed.(ret=" << ret << ")\n";
 			break;
 		}
 		isConnected = True;
@@ -486,21 +457,26 @@ ourRTMPClient::ourRTMPClient(UsageEnvironment& env, char const* rtmpUrl)
 		env << *this << "publish stream success" << "\n";
 #endif
 		return;
-	} while(0);
+	} while (0);
 
-	destroy(env);
+	close();
 }
 
-ourRTMPClient::~ourRTMPClient() {
+void ourRTMPClient::close() {
+	env << *this << "Cleanup when unpublish. ";
+	srs_rtmp_destroy(rtmp);
+	isConnected = False;
+	env <<  "client disconnect peer" << "\n";
+	usleep(5 * 1000 * 1000);
 }
 
-void ourRTMPClient::sendH264FramePacket(UsageEnvironment& env, u_int8_t* data, unsigned size, unsigned timestamp) {
+void ourRTMPClient::sendH264FramePacket(u_int8_t* data, unsigned size, unsigned timestamp) {
 	do {
-		if(hTimestamp == 0)
-			hTimestamp = timestamp;
+		if(fTimestamp == 0)
+			fTimestamp = timestamp;
 
-		pts = dts += (timestamp-hTimestamp);
-		hTimestamp = timestamp;
+		pts = dts += (timestamp-fTimestamp);
+		fTimestamp = timestamp;
 
 		int ret = srs_h264_write_raw_frames(rtmp, (char*)data, size, dts, pts);
 		if (ret != 0) {
@@ -525,14 +501,11 @@ void ourRTMPClient::sendH264FramePacket(UsageEnvironment& env, u_int8_t* data, u
 		return;
 	} while(0);
 
-	destroy(env);
-}
+	close();
 
-void ourRTMPClient::destroy(UsageEnvironment& env) {
-	env << *this << "Cleanup when unpublish. ";
-	srs_rtmp_destroy(rtmp);
-	isConnected = False;
-	env <<  "client disconnect peer" << "\n";
+	do {
+		connect();
+	} while(!isConnected);
 }
 
 /*

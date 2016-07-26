@@ -31,27 +31,11 @@ void sendLivenessCommandHandler(void* clientData);
 void usage(UsageEnvironment& env);
 
 void announceStream(RTSPClient* rtspClient);
-void addStartCode(u_int8_t*& dest, u_int8_t* src, unsigned size);
-//void analyze_h264_seq_parameter_set_data(u_int8_t* sps, unsigned spsSize, unsigned& profile_idc, unsigned& level_idc, unsigned& width, unsigned& height, unsigned& fps);
-
- //Sequence parameter set
-#define isSPS(nut)              (nut == 7)
-//Picture parameter set
-#define isPPS(nut)              (nut == 8)
-//Supplemental enhancement information
-#define isSEI(nut)              (nut == 6)
-//Access unit delimiter
-#define isAUD(nut)              (nut == 9)
-//Coded slice of an IDR picture
-#define isIDR(nut)              (nut == 5)
-//Coded slice of a non-IDR picture
-#define isNonIDR(nut)         (nut == 1)
 
 class StreamClientState {
 public:
         StreamClientState();
         virtual ~StreamClientState();
-
 public:
         MediaSubsessionIterator* iter;
         MediaSession* session;
@@ -80,18 +64,20 @@ public:
 
 class ourRTMPClient {
 public:
-        static ourRTMPClient* createNew(UsageEnvironment& env, char const* rtmpUrl);
+        static ourRTMPClient* createNew(UsageEnvironment& _env, char const* rtmpUrl);
 protected:
-        ourRTMPClient(UsageEnvironment& env, char const* rtmpUrl);
+        ourRTMPClient(UsageEnvironment& _env, char const* rtmpUrl);
         virtual ~ourRTMPClient();
+        void connect();
 public:
-        void sendH264FramePacket(UsageEnvironment& env, u_int8_t* data, unsigned size, unsigned timestamp);
-        void destroy(UsageEnvironment& env);
+        void sendH264FramePacket(u_int8_t* data, unsigned size, unsigned timestamp);
+        void close();
         Boolean isConnected;
         char const* url() const { return fUrl; }
 private:
+        UsageEnvironment& env;
         srs_rtmp_t rtmp;
-        unsigned hTimestamp;
+        unsigned fTimestamp;
         u_int32_t dts, pts;
         char* fUrl;
 };
@@ -101,7 +87,6 @@ public:
         static DummySink* createNew(UsageEnvironment& env, MediaSubsession& subsession, ourRTMPClient& client);
 private:
         DummySink(UsageEnvironment& env, MediaSubsession& subsession, ourRTMPClient& client);
-        // called only by "createNew()"
         virtual ~DummySink();
 
         static void afterGettingFrame(void* clientData, unsigned frameSize,
@@ -111,17 +96,58 @@ private:
         void afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
                         struct timeval presentationTime, unsigned durationInMicroseconds);
 
-private:
         // redefined virtual functions:
         virtual Boolean continuePlaying();
-public:
-        u_int8_t* sps;
-        u_int8_t* pps;
-        unsigned spsSize;
-        unsigned ppsSize;
-private:
-        u_int8_t* fReceiveBuffer;
         Boolean fHaveWrittenFirstFrame;
+public:
+        Boolean isSPS(u_int8_t nut) const { return nut == 7; } //Sequence parameter set
+        Boolean isPPS(u_int8_t nut) const { return nut == 8; } //Picture parameter set
+        Boolean isIDR(u_int8_t nut) const { return nut == 5; } //Coded slice of an IDR picture
+        Boolean isNonIDR(u_int8_t nut) const { return nut == 1; } //Coded slice of a non-IDR picture
+        //Boolean isSEI(u_int8_t nut) const { return nut == 6; } //Supplemental enhancement information
+        //Boolean isAUD(u_int8_t nut) const { return nut == 9; } //Access unit delimiter
+
+        void sendSpsPacket(u_int8_t* data, unsigned size, unsigned timestamp = 0) {
+        	if (fSps != NULL) {
+        		delete[] fSps;
+        		fSps = NULL;
+        	}
+
+        	fSpsSize = size+4;
+        	fSps = new u_int8_t[fSpsSize];
+
+        	fSps[0] = 0;	fSps[1] = 0;
+        	fSps[2] = 0;	fSps[3] = 1;
+        	memmove(fSps+4, data, size);
+
+        	if(timestamp != 0) {
+        		rtmpClient.sendH264FramePacket(fSps, fSpsSize, timestamp);
+        	}
+        }
+
+        void sendPpsPacket(u_int8_t* data, unsigned size, unsigned timestamp = 0) {
+        	if (fPps != NULL) {
+        		delete[] fPps;
+        		fPps = NULL;
+        	}
+
+        	fPpsSize = size+4;
+        	fPps = new u_int8_t[fPpsSize];
+
+        	fPps[0] = 0;	fPps[1] = 0;
+        	fPps[2] = 0;	fPps[3] = 1;
+        	memmove(fPps+4, data, size);
+
+        	if(timestamp != 0) {
+        		rtmpClient.sendH264FramePacket(fPps, fPpsSize, timestamp);
+        	}
+        }
+private:
+        u_int8_t* fSps = NULL;
+        u_int8_t* fPps = NULL;
+        unsigned fSpsSize;
+        unsigned fPpsSize;
+        u_int8_t* fReceiveBuffer;
         MediaSubsession& fSubsession;
         ourRTMPClient& rtmpClient;
 };
