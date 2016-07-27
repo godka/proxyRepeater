@@ -62,20 +62,17 @@ public:
         StreamClientState scs;
 };
 
-class ourRTMPClient {
+class ourRTMPClient: public Medium {
 public:
-        static ourRTMPClient* createNew(UsageEnvironment& _env, char const* rtmpUrl);
-protected:
-        ourRTMPClient(UsageEnvironment& _env, char const* rtmpUrl);
-        virtual ~ourRTMPClient();
-        void connect();
-public:
+        static ourRTMPClient* createNew(UsageEnvironment& env, char const* rtmpUrl);
         void sendH264FramePacket(u_int8_t* data, unsigned size, unsigned timestamp);
-        void close();
+public:
         Boolean isConnected;
         char const* url() const { return fUrl; }
+protected:
+        ourRTMPClient(UsageEnvironment& env, char const* rtmpUrl);
+        virtual ~ourRTMPClient();
 private:
-        UsageEnvironment& env;
         srs_rtmp_t rtmp;
         unsigned fTimestamp;
         u_int32_t dts, pts;

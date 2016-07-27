@@ -20,7 +20,8 @@ int main(int argc, char** argv) {
 	// There are argc-1 URLs: argv[1] through argv[argc-1].  Open and start streaming each one:
 	for (int i = 1; i <= argc - 1; ++i) {
 		char rtmpUrl[120] = {'\0'};
-		sprintf(rtmpUrl, "rtmp://117.135.196.137:11935/srs?nonce=1468312250651&token=f93e7db777ca7cf05d83210b3c64dad5/stream%d", i);
+		//sprintf(rtmpUrl, "rtmp://117.135.196.137:11935/srs?nonce=1468312250651&token=f93e7db777ca7cf05d83210b3c64dad5/stream%d", i);
+		sprintf(rtmpUrl, "rtmp://10.196.230.147:1935/srs/stream%d", i);
 		openURL(*env, argv[i], rtmpUrl);
 	}
 
@@ -219,10 +220,8 @@ void shutdownStream(RTSPClient* rtspClient, int exitCode) {
 	UsageEnvironment& env = rtspClient->envir();
 	StreamClientState& scs = ((ourRTSPClient*) rtspClient)->scs;
 	char const* rtspUrl = strDup(rtspClient->url());
-	char const* rtmpUrl = ((ourRTMPClient*)scs.rtmpClient)->url();
-
-	((ourRTMPClient*)scs.rtmpClient)->close();
-	scs.rtmpClient = NULL;
+	ourRTMPClient* rtmpClient = (ourRTMPClient*)scs.rtmpClient;
+	char const* rtmpUrl = strDup(rtmpClient->url());
 
 	if (scs.session != NULL) {
 		Boolean someSubsessionsWereActive = False;
@@ -248,13 +247,13 @@ void shutdownStream(RTSPClient* rtspClient, int exitCode) {
 	}
 
 	env << *rtspClient << "Closing the stream.\n";
+	Medium::close(rtmpClient);
 	Medium::close(rtspClient);
 
 	if (--rtspClientCount == 0) {
 		//exit(exitCode);
 	}
 
-	//usleep(5 * 1000 * 1000);
 	openURL(env, rtspUrl, rtmpUrl);
 }
 
@@ -413,22 +412,14 @@ Boolean DummySink::continuePlaying() {
 }
 
 //Implementation of "ourRTMPClient":
-ourRTMPClient* ourRTMPClient::createNew(UsageEnvironment& _env, char const* rtmpUrl) {
-	return new ourRTMPClient(_env, rtmpUrl);
+ourRTMPClient* ourRTMPClient::createNew(UsageEnvironment& env, char const* rtmpUrl) {
+	return new ourRTMPClient(env, rtmpUrl);
 }
 
-ourRTMPClient::ourRTMPClient(UsageEnvironment& _env, char const* rtmpUrl)
-	: env(_env), rtmp(NULL), fTimestamp(0), dts(0), pts(0)  {
+ourRTMPClient::ourRTMPClient(UsageEnvironment& env, char const* rtmpUrl) :
+		Medium(env), rtmp(NULL), fTimestamp(0), dts(0), pts(0) {
 	isConnected = False;
 	fUrl = strDup(rtmpUrl);
-	connect();
-}
-
-ourRTMPClient::~ourRTMPClient() {
-	delete[] fUrl;
-}
-
-void ourRTMPClient::connect() {
 	rtmp = srs_rtmp_create(fUrl);
 	do {
 		if (srs_rtmp_handshake(rtmp) != 0) {
@@ -444,7 +435,7 @@ void ourRTMPClient::connect() {
 			break;
 		}
 #ifdef DEBUG
-		env << *this <<"connect vhost/app success" << "\n";
+		envir() << *this <<"connect vhost/app success" << "\n";
 #endif
 
 		int ret = srs_rtmp_publish_stream(rtmp);
@@ -459,14 +450,14 @@ void ourRTMPClient::connect() {
 		return;
 	} while (0);
 
-	close();
+	Medium::close(this);
 }
 
-void ourRTMPClient::close() {
-	env << *this << "Cleanup when unpublish. ";
+ourRTMPClient::~ourRTMPClient() {
+	envir() << *this << "Cleanup when unpublish. client disconnect peer" << "\n";
 	srs_rtmp_destroy(rtmp);
 	isConnected = False;
-	env <<  "client disconnect peer" << "\n";
+	delete[] fUrl;
 	usleep(5 * 1000 * 1000);
 }
 
@@ -479,21 +470,22 @@ void ourRTMPClient::sendH264FramePacket(u_int8_t* data, unsigned size, unsigned 
 		fTimestamp = timestamp;
 
 		int ret = srs_h264_write_raw_frames(rtmp, (char*)data, size, dts, pts);
+		//ret = 1009;
 		if (ret != 0) {
 			if (srs_h264_is_dvbsp_error(ret)) {
-				env << *this << "ignore drop video error, code=" << ret << "\n";
+				envir() << *this << "ignore drop video error, code=" << ret << "\n";
 			} else if (srs_h264_is_duplicated_sps_error(ret)) {
-				env << *this << "ignore duplicated sps, code=" << ret << "\n";
+				envir() << *this << "ignore duplicated sps, code=" << ret << "\n";
 			} else if (srs_h264_is_duplicated_pps_error(ret)) {
-				env << *this << "ignore duplicated pps, code=" << ret << "\n";
+				envir() << *this << "ignore duplicated pps, code=" << ret << "\n";
 			} else {
-				env << *this << "send h264 raw data failed. code=" << ret << "\n";
+				envir() << *this << "send h264 raw data failed. code=" << ret << "\n";
 				break;
 			}
 		}
 #ifdef DEBUG
 		u_int8_t nut = data[4] & 0x1F;
-		env << *this << "sent packet: type=video" 
+		envir() << *this << "sent packet: type=video"
 		<< ", time=" << dts << ", size=" << size 
 		<< ", b[4]=" << (unsigned char*)data[4] << "("
 		<< (nut == 7? "SPS":(nut == 8? "PPS":(nut == 5? "I":(nut == 1? "P":"Unknown")))) << ")\n";
@@ -501,11 +493,7 @@ void ourRTMPClient::sendH264FramePacket(u_int8_t* data, unsigned size, unsigned 
 		return;
 	} while(0);
 
-	close();
-
-	do {
-		connect();
-	} while(!isConnected);
+	Medium::close(this);
 }
 
 /*
