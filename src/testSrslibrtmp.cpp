@@ -61,13 +61,21 @@ int main(int argc, char** argv) {
 }
 
 cJSON* loadConfigFile(char const* path) {
-	FILE *f;long len;char *data;
-	if((f=fopen(path,"rb")) == 0) return NULL;
-	fseek(f,0,SEEK_END); len=ftell(f); fseek(f,0,SEEK_SET);
-	data=(char*)malloc(len+1); fread(data,1,len,f); data[len]='\0';
-	fclose(f);
-	cJSON* json = cJSON_Parse(data);
+	FILE *f; 
+	if((f = fopen(path,"rb")) == NULL) 
+		return NULL;
+
+	cJSON* json = NULL;
+	fseek(f,0,SEEK_END); 
+	long len = ftell(f); 
+	fseek(f,0,SEEK_SET);
+	char* data = (char*)malloc(len+1); 
+	if (fread(data,1,len,f) == (size_t)len) {
+		data[len]='\0';
+		json = cJSON_Parse(data);
+	} 
 	free(data);
+	fclose(f);
 	return json;
 }
 
