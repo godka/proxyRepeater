@@ -20,8 +20,8 @@ int main(int argc, char** argv) {
 	// There are argc-1 URLs: argv[1] through argv[argc-1].  Open and start streaming each one:
 	for (int i = 1; i <= argc - 1; ++i) {
 		char rtmpUrl[120] = {'\0'};
-		//sprintf(rtmpUrl, "rtmp://117.135.196.137:11935/srs?nonce=1468312250651&token=f93e7db777ca7cf05d83210b3c64dad5/stream%d", i);
-		sprintf(rtmpUrl, "rtmp://127.0.0.1:1935/srs/stream%d", i);
+		sprintf(rtmpUrl, "rtmp://117.135.196.137:11935/rpi?nonce=1468312250651&token=f93e7db777ca7cf05d83210b3c64dad5/stream%d", i);
+		//sprintf(rtmpUrl, "rtmp://127.0.0.1:1935/srs/stream%d", i);
 		openURL(*env, argv[i], rtmpUrl);
 	}
 
