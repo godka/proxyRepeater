@@ -5,6 +5,7 @@
 #include "BasicUsageEnvironment.hh"
 #include "BitVector.hh"
 #include "srs_librtmp.h"
+#include "cJSON.h"
 
 #define RTSP_CLIENT_VERBOSITY_LEVEL 0
 
@@ -30,6 +31,7 @@ void sendLivenessCommandHandler(void* clientData);
 
 void usage(UsageEnvironment& env);
 void announceStream(RTSPClient* rtspClient);
+cJSON* loadConfigFile(char const* path);
 
 Boolean isSPS(u_int8_t nut)  { return nut == 7; } //Sequence parameter set
 Boolean isPPS(u_int8_t nut)  { return nut == 8; } //Picture parameter set

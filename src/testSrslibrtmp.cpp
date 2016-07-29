@@ -10,29 +10,71 @@ int main(int argc, char** argv) {
 
 	TaskScheduler* scheduler = BasicTaskScheduler::createNew();
 	UsageEnvironment* env = BasicUsageEnvironment::createNew(*scheduler);
-	
-	// We need at least one "rtsp://" URL argument:
 	if (argc < 2) {
 		usage(*env);
 		exit(1);
 	}
 
-	// There are argc-1 URLs: argv[1] through argv[argc-1].  Open and start streaming each one:
-	for (int i = 1; i <= argc - 1; ++i) {
-		char rtmpUrl[120] = {'\0'};
-		sprintf(rtmpUrl, "rtmp://117.135.196.137:11935/rpi?nonce=1468312250651&token=f93e7db777ca7cf05d83210b3c64dad5/stream%d", i);
-		//sprintf(rtmpUrl, "rtmp://127.0.0.1:1935/srs/stream%d", i);
-		openURL(*env, argv[i], rtmpUrl);
-	}
+	int opt;
+	cJSON* conf;
+	while ((opt = getopt(argc, argv, "c:a:s:S:H:p:h")) != -1) {
+		switch (opt) {
+		case 'c':
+			//*env << "option c: " << optarg << "\n";
+			conf = loadConfigFile(optarg);
+			if (!conf) {
+				*env << "File not found or json parse fail.\"" << optarg << "\"\n";
+			} else {
+				int iCount = cJSON_GetArraySize(conf);
+				for (int i=0; i<iCount; ++i) {
+					cJSON* pItem = cJSON_GetArrayItem(conf, i);
+					if (NULL == pItem)
+						continue;
 
-	env->taskScheduler().doEventLoop(&eventLoopWatchVariable);
+					cJSON* url = cJSON_GetObjectItem(pItem, "url");
+					cJSON* host = cJSON_GetObjectItem(pItem, "host");
+					cJSON* app = cJSON_GetObjectItem(pItem, "app");
+					cJSON* stream = cJSON_GetObjectItem(pItem, "stream");
+					cJSON* params = cJSON_GetObjectItem(pItem, "params");
+					if (NULL != url && NULL != host && NULL != app && NULL != stream) {
+						char rtmpUrl[120] = {'\0'};
+						//rtmp://host:port/app[?params]/stream
+						sprintf(rtmpUrl, "rtmp://%s/%s%s/%s", host->valuestring,
+								app->valuestring,
+								(NULL != params && strlen(params->valuestring) > 0) ? params->valuestring : "",
+								stream->valuestring);
+
+						//*env << "\t" << url->valuestring << "\t" << rtmpUrl << "\n";
+						openURL(*env, url->valuestring, rtmpUrl);
+					}
+				}
+				cJSON_Delete(conf);
+				env->taskScheduler().doEventLoop(&eventLoopWatchVariable);
+			}
+			break;
+		case 'h': default:
+			usage(*env);
+			break;
+		}
+	}
 	return 0;
+}
+
+cJSON* loadConfigFile(char const* path) {
+	FILE *f;long len;char *data;
+	if((f=fopen(path,"rb")) == 0) return NULL;
+	fseek(f,0,SEEK_END); len=ftell(f); fseek(f,0,SEEK_SET);
+	data=(char*)malloc(len+1); fread(data,1,len,f); data[len]='\0';
+	fclose(f);
+	cJSON* json = cJSON_Parse(data);
+	free(data);
+	return json;
 }
 
 void openURL(UsageEnvironment& env, char const* rtspURL, char const* rtmpURL) {
 	ourRTSPClient* rtspClient = ourRTSPClient::createNew(env, rtspURL, rtmpURL, RTSP_CLIENT_VERBOSITY_LEVEL, progName);
 	if (rtspClient == NULL) {
-		env << "Failed to create a RTSP client for URL \"" << rtspURL << "\": " << env.getResultMsg() << "\n";
+		env << "ERROR: Failed to create a RTSP client for URL \"" << rtspURL << "\": " << env.getResultMsg() << "\n";
 		return;
 	}
 
@@ -299,8 +341,14 @@ void streamTimerHandler(void* clientData) {
 }
 
 void usage(UsageEnvironment& env) {
-	env << "Usage: " << progName << " <rtsp-url-1> ... <rtsp-url-N>\n";
-	env << "\t(where each <rtsp-url-i> is a \"rtsp://\" URL)\n";
+	env << "Usage: " << progName << " [-c <conf>]\n";
+	/*
+	env << "\t\t[-H <rtmpHost>]\n";
+	env << "\t\t[-p <rtmpPort>]\n";
+	env << "\t\t[-a <appName>]\n";
+	env << "\t\t[-s <streamName>]\n";
+	env << "\t\t[-S <securityStr>]\n";
+	*/
 }
 
 void announceStream(RTSPClient* rtspClient) {
@@ -403,7 +451,7 @@ void DummySink::afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes
 
  RECONNECT:
  	fHaveWrittenFirstFrame = True;
- 	ourRTMPClient::createNew(envir(), (ourRTSPClient*) fSubsession.miscPtr);
+ 	rtmpClient = ourRTMPClient::createNew(envir(), (ourRTSPClient*) fSubsession.miscPtr);
  NEXT:
  	// Then continue, to request the next frame of data:
  	continuePlaying();
@@ -427,17 +475,18 @@ ourRTMPClient*  ourRTMPClient::createNew(UsageEnvironment& env, RTSPClient* rtsp
 ourRTMPClient::ourRTMPClient(UsageEnvironment& env, RTSPClient* rtspClient) :
 		Medium(env), rtmp(NULL), fTimestamp(0), dts(0), pts(0) {
 	fSource = (ourRTSPClient*)rtspClient;
-	fSource->publisher = this;
-	rtmp = srs_rtmp_create(fSource->endpoint());
 }
 
 ourRTMPClient::~ourRTMPClient() {
 	envir() << *fSource << "Cleanup when unpublish. client disconnect peer" << "\n";
 	srs_rtmp_destroy(rtmp);
+	fSource->publisher = NULL;
 }
 
 Boolean ourRTMPClient::connect() {
 	do {
+		rtmp = srs_rtmp_create(fSource->endpoint());
+
 		if (srs_rtmp_handshake(rtmp) != 0) {
 			envir() << *fSource << "simple handshake failed." << "\n";
 			break;
@@ -462,6 +511,7 @@ Boolean ourRTMPClient::connect() {
 #ifdef DEBUG
 		envir() << *fSource << "publish stream success" << "\n";
 #endif
+		fSource->publisher = this;
 		return True;
 	} while (0);
 
@@ -471,32 +521,34 @@ Boolean ourRTMPClient::connect() {
 
 Boolean ourRTMPClient::sendH264FramePacket(u_int8_t* data, unsigned size, unsigned timestamp) {
 	do {
-		if(fTimestamp == 0)
+		if(NULL != data && size > 0) {
+			if(fTimestamp == 0)
+				fTimestamp = timestamp;
+
+			pts = dts += (timestamp-fTimestamp);
 			fTimestamp = timestamp;
 
-		pts = dts += (timestamp-fTimestamp);
-		fTimestamp = timestamp;
-
-		int ret = srs_h264_write_raw_frames(rtmp, (char*)data, size, dts, pts);
-		if (ret != 0) {
-			if (srs_h264_is_dvbsp_error(ret)) {
-				envir() << *fSource << "ignore drop video error, code=" << ret << "\n";
-			} else if (srs_h264_is_duplicated_sps_error(ret)) {
-				envir() << *fSource << "ignore duplicated sps, code=" << ret << "\n";
-			} else if (srs_h264_is_duplicated_pps_error(ret)) {
-				envir() << *fSource << "ignore duplicated pps, code=" << ret << "\n";
-			} else {
-				envir() << *fSource << "send h264 raw data failed. code=" << ret << "\n";
-				break;
+			int ret = srs_h264_write_raw_frames(rtmp, (char*)data, size, dts, pts);
+			if (ret != 0) {
+				if (srs_h264_is_dvbsp_error(ret)) {
+					envir() << *fSource << "ignore drop video error, code=" << ret << "\n";
+				} else if (srs_h264_is_duplicated_sps_error(ret)) {
+					envir() << *fSource << "ignore duplicated sps, code=" << ret << "\n";
+				} else if (srs_h264_is_duplicated_pps_error(ret)) {
+					envir() << *fSource << "ignore duplicated pps, code=" << ret << "\n";
+				} else {
+					envir() << *fSource << "send h264 raw data failed. code=" << ret << "\n";
+					break;
+				}
 			}
-		}
 #ifdef DEBUG
-		u_int8_t nut = data[4] & 0x1F;
-		envir() << *fSource << "sent packet: type=video"
-		<< ", time=" << dts << ", size=" << size 
-		<< ", b[4]=" << (unsigned char*)data[4] << "("
-		<< (isSPS(nut)? "SPS" : (isPPS(nut) ? "PPS" : (isIDR(nut) ? "I" : (isNonIDR(nut) ? "P" : "Unknown")))) << ")\n";
+			u_int8_t nut = data[4] & 0x1F;
+			envir() << *fSource << "sent packet: type=video"
+			<< ", time=" << dts << ", size=" << size
+			<< ", b[4]=" << (unsigned char*)data[4] << "("
+			<< (isSPS(nut)? "SPS" : (isPPS(nut) ? "PPS" : (isIDR(nut) ? "I" : (isNonIDR(nut) ? "P" : "Unknown")))) << ")\n";
 #endif
+		}
 		return True;
 	} while(0);
 	
