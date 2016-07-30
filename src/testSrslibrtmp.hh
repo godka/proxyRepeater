@@ -3,8 +3,8 @@
 
 #include "liveMedia.hh"
 #include "BasicUsageEnvironment.hh"
-#include "BitVector.hh"
 #include "srs_librtmp.h"
+//#include "BitVector.hh"
 #include "cJSON.h"
 
 #define RTSP_CLIENT_VERBOSITY_LEVEL 0

@@ -1,4 +1,5 @@
 #include "testSrslibrtmp.hh"
+#include "cMD5.hpp"
 
 static unsigned rtspClientCount = 0;
 char eventLoopWatchVariable = 0;
@@ -26,26 +27,33 @@ int main(int argc, char** argv) {
 				*env << "File not found or json parse fail.\"" << optarg << "\"\n";
 			} else {
 				int iCount = cJSON_GetArraySize(conf);
+				MD5 iMD5;
+				struct timeval timeNow;
 				for (int i=0; i<iCount; ++i) {
 					cJSON* pItem = cJSON_GetArrayItem(conf, i);
 					if (NULL == pItem)
 						continue;
 
 					cJSON* url = cJSON_GetObjectItem(pItem, "url");
-					cJSON* host = cJSON_GetObjectItem(pItem, "host");
-					cJSON* app = cJSON_GetObjectItem(pItem, "app");
+					cJSON* endpoint = cJSON_GetObjectItem(pItem, "endpoint");
 					cJSON* stream = cJSON_GetObjectItem(pItem, "stream");
-					cJSON* params = cJSON_GetObjectItem(pItem, "params");
-					if (NULL != url && NULL != host && NULL != app && NULL != stream) {
+					cJSON* password = cJSON_GetObjectItem(pItem, "password");
+					if (NULL != url && NULL != endpoint && NULL != stream) {
 						char rtmpUrl[120] = {'\0'};
-						//rtmp://host:port/app[?params]/stream
-						sprintf(rtmpUrl, "rtmp://%s/%s%s/%s", host->valuestring,
-								app->valuestring,
-								(NULL != params && strlen(params->valuestring) > 0) ? params->valuestring : "",
-								stream->valuestring);
-
+						//rtmp://host:port/app[?nonce=x&token=y]/stream
+						sprintf(rtmpUrl, "%s", endpoint->valuestring);
+						if(NULL != password && strlen(password->valuestring) > 0) {
+							gettimeofday(&timeNow, NULL);
+							unsigned nonce = timeNow.tv_sec*1000 + timeNow.tv_usec/1000;
+							char token[50] = {'\0'};
+							sprintf(token, "%d%s%s", nonce, password->valuestring, "-1");
+							iMD5.GenerateMD5((unsigned char*)token, strlen(token));
+							sprintf(rtmpUrl, "%s?nonce=%d&token=%s", rtmpUrl, nonce, iMD5.ToString().c_str());
+						}
+						sprintf(rtmpUrl, "%s/%s", rtmpUrl, stream->valuestring);
 						//*env << "\t" << url->valuestring << "\t" << rtmpUrl << "\n";
 						openURL(*env, url->valuestring, rtmpUrl);
+						usleep(100*1000);
 					}
 				}
 				cJSON_Delete(conf);
