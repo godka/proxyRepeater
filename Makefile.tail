@@ -6,6 +6,7 @@ USAGE_ENVIRONMENT_DIR = live555/UsageEnvironment
 BASIC_USAGE_ENVIRONMENT_DIR = live555/BasicUsageEnvironment
 SRS_LIBRTMP_DIR = srs-librtmp
 SRC_DIR = src
+NODE_DIR = nodejs
 all:
 	cd $(LIVEMEDIA_DIR) ; $(MAKE)
 	cd $(GROUPSOCK_DIR) ; $(MAKE)
@@ -14,6 +15,13 @@ all:
 	cd $(SRS_LIBRTMP_DIR) ; $(MAKE)
 	cd $(SRC_DIR) ; $(MAKE)
 
+node:
+	cd $(LIVEMEDIA_DIR) ; $(MAKE)
+	cd $(GROUPSOCK_DIR) ; $(MAKE)
+	cd $(USAGE_ENVIRONMENT_DIR) ; $(MAKE)
+	cd $(BASIC_USAGE_ENVIRONMENT_DIR) ; $(MAKE)
+	cd $(SRS_LIBRTMP_DIR) ; $(MAKE)
+	cd $(NODE_DIR) ;  node-gyp configure rebuild
 install:
 	cd $(LIVEMEDIA_DIR) ; $(MAKE) install
 	cd $(GROUPSOCK_DIR) ; $(MAKE) install
@@ -21,6 +29,7 @@ install:
 	cd $(BASIC_USAGE_ENVIRONMENT_DIR) ; $(MAKE) install
 	cd $(SRS_LIBRTMP_DIR); $(MAKE) install
 	cd $(SRC_DIR) ; $(MAKE) install
+
 clean:
 	cd $(LIVEMEDIA_DIR) ; $(MAKE) clean
 	cd $(GROUPSOCK_DIR) ; $(MAKE) clean
@@ -28,6 +37,8 @@ clean:
 	cd $(BASIC_USAGE_ENVIRONMENT_DIR) ; $(MAKE) clean
 	cd $(SRS_LIBRTMP_DIR) ; $(MAKE) clean
 	cd $(SRC_DIR) ; $(MAKE) clean
+	cd $(NODE_DIR) ;  node-gyp clean
+
 distclean: clean
 	-rm -f $(LIVEMEDIA_DIR)/Makefile \
 	  $(GROUPSOCK_DIR)/Makefile \
