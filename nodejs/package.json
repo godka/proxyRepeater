@@ -1,0 +1,14 @@
+{
+  "name": "node_nvr",
+  "version": "0.0.0",
+  "description": "Node.js Addons node-nvr",
+  "main": "app.js",
+  "private": true,
+  "scripts": {
+    "test": "node app.js"
+  },
+  "gypfile": true,
+  "dependencies": {
+    "bindings": "~1.2.1"
+  }
+}
