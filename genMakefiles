@@ -14,6 +14,18 @@ if [ ! -d  $Pro_Dir/objs ]; then
     mkdir $Pro_Dir/objs
 fi
 
+if  hash nodejs 2>/dev/null; then
+    echo 'node version:' `nodejs -v`
+else
+    sudo apt-get install nodejs
+fi
+
+if  hash npm 2>/dev/null; then
+    echo 'npm version:' `npm -v`
+else
+    sudo apt-get install npm
+fi
+
 if [ ! -d  $Pro_Dir/srs-librtmp ]; then
     git clone https://github.com/aesirteam/srs-librtmp.git
 fi
