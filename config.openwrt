@@ -1,5 +1,5 @@
 CROSS_COMPILE=         mipsel-openwrt-linux-
-COMPILE_OPTS =          $(INCLUDES) -I. -Os -DSOCKLEN_T=socklen_t -DLOCALE_NOT_USED -DNO_SSTREAM=1 -DLARGEFILE_SOURCE=1 -D_FILE_OFFSET_BITS=64
+COMPILE_OPTS =          $(INCLUDES) -fPIC -I. -Os -DSOCKLEN_T=socklen_t -DLOCALE_NOT_USED -DNO_SSTREAM=1 -DLARGEFILE_SOURCE=1 -D_FILE_OFFSET_BITS=64
 C =                    c
 C_COMPILER =           $(CROSS_COMPILE)gcc
 C_FLAGS =              $(COMPILE_OPTS)
@@ -22,3 +22,5 @@ CXX = $(CPLUSPLUS_COMPILER)
 AR = $(CROSS_COMPILE)ar
 LINK = $(CROSS_COMPILE)g++
 CXXFLAGS = -ansi -Wall -g -O0 -fPIC
+
+GYP_TARGET_ARCH = "--target_arch=arm"

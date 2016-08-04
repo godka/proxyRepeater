@@ -20,4 +20,6 @@ GCC = $(C_COMPILER)
 CXX = $(CPLUSPLUS_COMPILER)
 AR = ar
 LINK = $(CPLUSPLUS_COMPILER)
-CXXFLAGS = -ansi -Wall -g -O0 -fPIC
+CXXFLAGS = -m64 -ansi -Wall -g -O0 -fPIC
+
+GYP_TARGET_ARCH = "--target_arch=x64"

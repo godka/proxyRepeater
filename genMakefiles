@@ -57,3 +57,11 @@ cd $Pro_Dir
 /bin/rm -f Makefile
 cat Makefile.head config.$1 Makefile.tail > Makefile
 chmod a-w Makefile
+
+cd $Pro_Dir/nodejs
+/bin/rm -f binding.gyp
+cp -f nobody.gyp binding.gyp
+if [  -f  $1.gyp ]; then
+    cp -f $1.gyp binding.gyp
+fi
+chmod a-w binding.gyp

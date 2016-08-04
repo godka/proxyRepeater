@@ -21,7 +21,7 @@ node:
 	cd $(USAGE_ENVIRONMENT_DIR) ; $(MAKE)
 	cd $(BASIC_USAGE_ENVIRONMENT_DIR) ; $(MAKE)
 	cd $(SRS_LIBRTMP_DIR) ; $(MAKE)
-	cd $(NODE_DIR) ;  node-gyp configure rebuild
+	cd $(NODE_DIR) ;  node-gyp configure build $(GYP_TARGET_ARCH) 
 install:
 	cd $(LIVEMEDIA_DIR) ; $(MAKE) install
 	cd $(GROUPSOCK_DIR) ; $(MAKE) install
@@ -47,4 +47,5 @@ distclean: clean
 	  $(SRS_LIBRTMP_DIR)/Makefile \
 	  $(SRS_LIBRTMP_DIR)/objs/Makefile \
 	  $(SRC_DIR)/Makefile \
+	  $(NODE_DIR)/binding.gyp \
 	  Makefile
