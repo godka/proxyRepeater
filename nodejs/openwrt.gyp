@@ -1,6 +1,7 @@
 {
   "make_global_settings": [
-      ["CROSS_COMPILE", "$(MIPS_TOOLCHAIN)/bin/mipsel-openwrt-linux-"],
+      ["CROSS_TOOLCHAIN","/home/zk/wrtnode/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin"],
+      ["CROSS_COMPILE", "$(CROSS_TOOLCHAIN)/mipsel-openwrt-linux-"],
       ["CC", "$(CROSS_COMPILE)gcc"],
       ["CXX", "$(CROSS_COMPILE)g++"],
       ["LINK", "$(CROSS_COMPILE)g++"],

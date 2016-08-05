@@ -9,9 +9,9 @@ if [ $# -ne 1 ]; then
     usage $*
 fi
 
-Pro_Dir=$(pwd)
-if [ ! -d  $Pro_Dir/objs ]; then
-    mkdir $Pro_Dir/objs
+PRO_DIR=$(pwd)
+if [ ! -d  $PRO_DIR/objs ]; then
+    mkdir $PRO_DIR/objs
 fi
 
 if  hash node 2>/dev/null; then
@@ -26,54 +26,45 @@ else
     sudo apt-get install npm
 fi
 
-if [ ! -d  $Pro_Dir/srs-librtmp ]; then
+if [ ! -d  $PRO_DIR/srs-librtmp ]; then
     git clone https://github.com/aesirteam/srs-librtmp.git
 fi
 
 cd live555/liveMedia
 /bin/rm -f Makefile
-cat Makefile.head $Pro_Dir/config.$1 Makefile.tail > Makefile
-chmod a-w Makefile
+cat Makefile.head $PRO_DIR/config.$1 Makefile.tail > Makefile
 
 cd ../groupsock
 /bin/rm -f Makefile
-cat Makefile.head $Pro_Dir/config.$1 Makefile.tail > Makefile
-chmod a-w Makefile
+cat Makefile.head $PRO_DIR/config.$1 Makefile.tail > Makefile
 
 cd ../UsageEnvironment
 /bin/rm -f Makefile
-cat Makefile.head $Pro_Dir/config.$1 Makefile.tail > Makefile
-chmod a-w Makefile
+cat Makefile.head $PRO_DIR/config.$1 Makefile.tail > Makefile
 
 cd ../BasicUsageEnvironment
 /bin/rm -f Makefile
-cat Makefile.head $Pro_Dir/config.$1 Makefile.tail > Makefile
-chmod a-w Makefile
+cat Makefile.head $PRO_DIR/config.$1 Makefile.tail > Makefile
 
-cd $Pro_Dir/srs-librtmp
+cd $PRO_DIR/srs-librtmp
 /bin/rm -f Makefile
 cat Makefile.tail > Makefile
-chmod a-w Makefile
 
-cd ./objs
+cd objs
 /bin/rm -f Makefile
-cat $Pro_Dir/config.$1 Makefile.tail > Makefile
-chmod a-w Makefile
+cat $PRO_DIR/config.$1 Makefile.tail > Makefile
 
-cd $Pro_Dir/src
-/bin/rm -f Makefile
-cat $Pro_Dir/config.$1 Makefile.tail > Makefile
-chmod a-w Makefile
-
-cd $Pro_Dir
+cd $PRO_DIR
 /bin/rm -f Makefile
 cat Makefile.head config.$1 Makefile.tail > Makefile
-chmod a-w Makefile
 
-cd $Pro_Dir/nodejs
+cd src
+/bin/rm -f Makefile
+cat $PRO_DIR/config.$1 Makefile.tail > Makefile
+
+cd ../nodejs
 /bin/rm -f binding.gyp
 cp -f nobody.gyp binding.gyp
 if [  -f  $1.gyp ]; then
     cp -f $1.gyp binding.gyp
 fi
-chmod a-w binding.gyp
