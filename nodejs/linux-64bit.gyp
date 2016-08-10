@@ -3,8 +3,12 @@
       "target_name" : "node_nvr_addon",
       "sources" : [ "../src/testSrslibrtmp.cpp" , "../src/cJSON.c", "../src/cMD5.cpp" ],
       "defines" : [
-          "NODE_V8_ADDON",
+          "NODE_ADDON",
           "SOCKLEN_T=socklen_t",
+          "LOCALE_NOT_USED",
+          "NO_SSTREAM=1",
+          "_LARGEFILE_SOURCE=1",
+          "_FILE_OFFSET_BITS=64",
           "BSD=1"
       ],
       "cflags" :  [

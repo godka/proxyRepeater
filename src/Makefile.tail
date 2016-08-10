@@ -7,22 +7,21 @@ SRS = ../srs-librtmp/objs
 SRS_INC = -I$(SRS)/include
 SRS_LIB = $(SRS)/lib/srs_librtmp.a
 
-COMPILE_OPTS = $(LIVE555_INC) $(SRS_INC) -fPIC -I. -O2 -DSOCKLEN_T=socklen_t -D_LARGEFILE_SOURCE=1
-C_FLAGS = $(COMPILE_OPTS)
-CPLUSPLUS_FLAGS = $(COMPILE_OPTS) -Wall -Wno-reorder -DBSD=1
 LIBS = cJSON.$(OBJ) cMD5.$(OBJ) $(LIVE555_LIB) $(SRS_LIB) 
 
 PROGS = testSrslibrtmp
 
+.PHONY : all clean
+
 all: $(PROGS)
 
 .$(C).$(OBJ) :
-	$(C_COMPILER) -c $(C_FLAGS) $<
+	$(C_COMPILER) -c $(LIVE555_INC) $(SRS_INC) $(C_FLAGS) $<
 .$(CPP).$(OBJ) :
-	$(CPLUSPLUS_COMPILER) -c $(CPLUSPLUS_FLAGS) $<
+	$(CPLUSPLUS_COMPILER) -c $(LIVE555_INC) $(SRS_INC) $(CPLUSPLUS_FLAGS) $<
 	
 testSrslibrtmp : testSrslibrtmp.$(OBJ) $(LIBS)
-	$(CPLUSPLUS_COMPILER) -o ../objs/$@ $< $(LIBS)
+	$(CPLUSPLUS_COMPILER) $(COMPILE_OPTS) -o ../objs/$@ $< $(LIBS)
 
 clean :
-	@rm -rf *.$(OBJ) ../objs/$(PROGS) core *.core *~ include/*~
+	-rm -rf *.$(OBJ) ../objs/$(PROGS) core *.core *~ include/*~

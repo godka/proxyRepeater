@@ -5,47 +5,36 @@ GROUPSOCK_DIR = live555/groupsock
 USAGE_ENVIRONMENT_DIR = live555/UsageEnvironment
 BASIC_USAGE_ENVIRONMENT_DIR = live555/BasicUsageEnvironment
 SRS_LIBRTMP_DIR = srs-librtmp
-SRC_DIR = src
-NODE_DIR = nodejs
+
+.PHONY : all node clean
+
 all:
-	cd $(LIVEMEDIA_DIR) ; $(MAKE)
-	cd $(GROUPSOCK_DIR) ; $(MAKE)
-	cd $(USAGE_ENVIRONMENT_DIR) ; $(MAKE)
-	cd $(BASIC_USAGE_ENVIRONMENT_DIR) ; $(MAKE)
-	cd $(SRS_LIBRTMP_DIR) ; $(MAKE)
-	cd $(SRC_DIR) ; $(MAKE)
+	cd $(LIVEMEDIA_DIR); $(MAKE)
+	cd $(GROUPSOCK_DIR); $(MAKE)
+	cd $(USAGE_ENVIRONMENT_DIR); $(MAKE)
+	cd $(BASIC_USAGE_ENVIRONMENT_DIR); $(MAKE)
+	cd $(SRS_LIBRTMP_DIR); $(MAKE)
+	cd src; $(MAKE)
 
-node:
-	cd $(LIVEMEDIA_DIR) ; $(MAKE)
-	cd $(GROUPSOCK_DIR) ; $(MAKE)
-	cd $(USAGE_ENVIRONMENT_DIR) ; $(MAKE)
-	cd $(BASIC_USAGE_ENVIRONMENT_DIR) ; $(MAKE)
-	cd $(SRS_LIBRTMP_DIR) ; $(MAKE)
-	cd $(NODE_DIR) ;  node-gyp configure build $(GYP_TARGET_ARCH) 
-install:
-	cd $(LIVEMEDIA_DIR) ; $(MAKE) install
-	cd $(GROUPSOCK_DIR) ; $(MAKE) install
-	cd $(USAGE_ENVIRONMENT_DIR) ; $(MAKE) install
-	cd $(BASIC_USAGE_ENVIRONMENT_DIR) ; $(MAKE) install
-	cd $(SRS_LIBRTMP_DIR); $(MAKE) install
-	cd $(SRC_DIR) ; $(MAKE) install
-
-clean:
-	cd $(LIVEMEDIA_DIR) ; $(MAKE) clean
-	cd $(GROUPSOCK_DIR) ; $(MAKE) clean
-	cd $(USAGE_ENVIRONMENT_DIR) ; $(MAKE) clean
-	cd $(BASIC_USAGE_ENVIRONMENT_DIR) ; $(MAKE) clean
-	cd $(SRS_LIBRTMP_DIR) ; $(MAKE) clean
-	cd $(SRC_DIR) ; $(MAKE) clean
-	cd $(NODE_DIR) ;  node-gyp clean
-
-distclean: clean
+node: all
+	cd nodejs; node-gyp configure build $(GYP_TARGET_ARCH) 
+	
+clean: cleanall
 	-rm -f $(LIVEMEDIA_DIR)/Makefile \
 	  $(GROUPSOCK_DIR)/Makefile \
 	  $(USAGE_ENVIRONMENT_DIR)/Makefile \
 	  $(BASIC_USAGE_ENVIRONMENT_DIR)/Makefile \
 	  $(SRS_LIBRTMP_DIR)/Makefile \
 	  $(SRS_LIBRTMP_DIR)/objs/Makefile \
-	  $(SRC_DIR)/Makefile \
-	  $(NODE_DIR)/binding.gyp \
+	  src/Makefile \
+	  nodejs/binding.gyp \
 	  Makefile
+	  
+cleanall:
+	cd $(LIVEMEDIA_DIR); $(MAKE) clean
+	cd $(GROUPSOCK_DIR); $(MAKE) clean
+	cd $(USAGE_ENVIRONMENT_DIR); $(MAKE) clean
+	cd $(BASIC_USAGE_ENVIRONMENT_DIR); $(MAKE) clean
+	cd $(SRS_LIBRTMP_DIR); $(MAKE) clean
+	cd src; $(MAKE) clean
+	cd nodejs; node-gyp clean

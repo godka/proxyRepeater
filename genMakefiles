@@ -5,25 +5,50 @@ usage() {
     exit 1
 }
 
+check_require() {
+	if  hash gcc 2>/dev/null; then
+    	echo 'gcc:' `gcc -dumpversion`
+	else
+		echo 'Not found C compile, exit.'
+	    exit 1
+	fi
+	
+	if  hash node 2>/dev/null; then
+	    echo 'node:' `node -v`
+	else
+	    sudo apt-get install nodejs
+	fi
+	
+	if  hash npm 2>/dev/null; then
+	    echo 'npm:' `npm -v`
+	else
+	    sudo apt-get install npm
+	fi
+	
+	if  hash node-gyp 2>/dev/null; then
+	    echo 'node-gyp:' `node-gyp -v`
+	else
+	    npm install node-gyp -g
+	fi
+}
+
+default_gyp() {
+	echo {\
+  		\"targets\": [{ \
+      		\"target_name\" : \"node_nvr_addon\" \
+    	}] \
+	} > binding.gyp
+}
+
 if [ $# -ne 1 ]; then
     usage $*
 fi
 
+check_require
+
 PRO_DIR=$(pwd)
 if [ ! -d  $PRO_DIR/objs ]; then
     mkdir $PRO_DIR/objs
-fi
-
-if  hash node 2>/dev/null; then
-    echo 'node version:' `node -v`
-else
-    sudo apt-get install nodejs
-fi
-
-if  hash npm 2>/dev/null; then
-    echo 'npm version:' `npm -v`
-else
-    sudo apt-get install npm
 fi
 
 if [ ! -d  $PRO_DIR/srs-librtmp ]; then
@@ -31,40 +56,41 @@ if [ ! -d  $PRO_DIR/srs-librtmp ]; then
 fi
 
 cd live555/liveMedia
-/bin/rm -f Makefile
+rm -f Makefile
 cat Makefile.head $PRO_DIR/config.$1 Makefile.tail > Makefile
 
 cd ../groupsock
-/bin/rm -f Makefile
+rm -f Makefile
 cat Makefile.head $PRO_DIR/config.$1 Makefile.tail > Makefile
 
 cd ../UsageEnvironment
-/bin/rm -f Makefile
+rm -f Makefile
 cat Makefile.head $PRO_DIR/config.$1 Makefile.tail > Makefile
 
 cd ../BasicUsageEnvironment
-/bin/rm -f Makefile
+rm -f Makefile
 cat Makefile.head $PRO_DIR/config.$1 Makefile.tail > Makefile
 
 cd $PRO_DIR/srs-librtmp
-/bin/rm -f Makefile
+rm -f Makefile
 cat Makefile.tail > Makefile
 
 cd objs
-/bin/rm -f Makefile
+rm -f Makefile
 cat $PRO_DIR/config.$1 Makefile.tail > Makefile
 
 cd $PRO_DIR
-/bin/rm -f Makefile
+rm -f Makefile
 cat Makefile.head config.$1 Makefile.tail > Makefile
 
 cd src
-/bin/rm -f Makefile
+rm -f Makefile
 cat $PRO_DIR/config.$1 Makefile.tail > Makefile
 
 cd ../nodejs
-/bin/rm -f binding.gyp
-cp -f nobody.gyp binding.gyp
-if [  -f  $1.gyp ]; then
+rm -f binding.gyp
+if [ ! -f  $1.gyp ]; then
+	default_gyp
+else
     cp -f $1.gyp binding.gyp
 fi

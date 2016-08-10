@@ -1,7 +1,5 @@
 {
   "make_global_settings": [
-      ["CROSS_TOOLCHAIN","/home/zk/wrtnode/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin"],
-      ["CROSS_COMPILE", "$(CROSS_TOOLCHAIN)/mipsel-openwrt-linux-"],
       ["CC", "$(CROSS_COMPILE)gcc"],
       ["CXX", "$(CROSS_COMPILE)g++"],
       ["LINK", "$(CROSS_COMPILE)g++"],
@@ -11,8 +9,12 @@
       "target_name" : "node_nvr_addon",
       "sources" : [ "../src/testSrslibrtmp.cpp" , "../src/cJSON.c", "../src/cMD5.cpp" ],
       "defines" : [
-          "NODE_V8_ADDON",
+          "NODE_ADDON",
           "SOCKLEN_T=socklen_t",
+          "LOCALE_NOT_USED",
+          "NO_SSTREAM=1",
+          "_LARGEFILE_SOURCE=1",
+          "_FILE_OFFSET_BITS=64",
           "BSD=1"
       ],
       "cflags" :  [

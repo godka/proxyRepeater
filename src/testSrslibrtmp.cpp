@@ -2,7 +2,7 @@
 #include "cMD5.hpp"
 #include "cJSON.h"
 
-#ifdef NODE_V8_ADDON
+#if ((defined NODE_ADDON) || (defined NODE_ADDON_V12))
 #include <node.h>
 #include <v8.h>
 #endif
@@ -30,6 +30,7 @@ cJSON* loadConfigFile(char const* path) {
 	return json;
 }
 
+#if ((!defined NODE_ADDON) && (!defined NODE_ADDON_V12))
 int main(int argc, char** argv) {
 	OutPacketBuffer::maxSize = DUMMY_SINK_RECEIVE_BUFFER_SIZE;
 	TaskScheduler* scheduler = BasicTaskScheduler::createNew();
@@ -92,41 +93,79 @@ int main(int argc, char** argv) {
 	}
 	return 0;
 }
+#endif
 
-#ifdef NODE_V8_ADDON
+#if ((defined NODE_ADDON) || (defined NODE_ADDON_V12))
+
 UsageEnvironment* env ;
+
+#ifdef NODE_ADDON_V12
+void InitMethod(const v8::FunctionCallbackInfo<v8::Value>& args) {
+	v8::Isolate* isolate = v8::Isolate::GetCurrent();
+	v8::HandleScope scope(isolate);
+#else
 v8::Handle<v8::Value> InitMethod(const v8::Arguments& args) {
 	v8::HandleScope scope;
+#endif
+
 	if (args.Length() < 1) {
-	        v8::ThrowException(v8::Exception::TypeError(v8::String::New("Wrong arguments")));
-	        return scope.Close(v8::Undefined());
+#ifdef NODE_ADDON_V12
+		isolate->ThrowException(v8::Exception::TypeError(v8::String::NewFromUtf8(isolate, "Wrong arguments")));
+		return;
+#else
+		v8::ThrowException(v8::Exception::TypeError(v8::String::New("Wrong arguments")));
+	    return scope.Close(v8::Undefined());
+#endif
 	}
 
 	if(!args[0]->IsString()) {
-	        v8::ThrowException(v8::Exception::TypeError(v8::String::New("Wrong String of arguments")));
-	        return scope.Close(v8::Undefined());
+#ifdef NODE_ADDON_V12
+		isolate->ThrowException(v8::Exception::TypeError(v8::String::NewFromUtf8(isolate, "Wrong string type of arguments[0]")));
+		return;
+#else
+		v8::ThrowException(v8::Exception::TypeError(v8::String::New("Wrong string of arguments[0]")));
+	    return scope.Close(v8::Undefined());
+#endif
 	}
 
 	if(!args[1]->IsFunction()) {
-	        v8::ThrowException(v8::Exception::TypeError(v8::String::New("Wrong function of arguments[1]")));
-	        return scope.Close(v8::Undefined());
+#ifdef NODE_ADDON_V12
+		isolate->ThrowException(v8::Exception::TypeError(v8::String::NewFromUtf8(isolate, "Wrong function of arguments[1]")));
+		return;
+#else
+	    v8::ThrowException(v8::Exception::TypeError(v8::String::New("Wrong function of arguments[1]")));
+	    return scope.Close(v8::Undefined());
+#endif
 	}
 
 	v8::Local<v8::Function> cb = v8::Local<v8::Function>::Cast(args[1]);
+	v8::String::Utf8Value str(args[0]);
 	const unsigned argc = 2;
-	v8::String::AsciiValue str(args[0]);
+	//printf("%s\n", *str);
 	cJSON* conf = cJSON_Parse(*str);
 	if(!conf) {
-	        v8::Local<v8::Value> argv[argc] = { v8::Local<v8::Value>::New(v8::Boolean::New(True)) , v8::Local<v8::Value>::New(v8::String::New("Json data parse fail.")) };
-	        cb->Call(v8::Context::GetCurrent()->Global(), argc, argv);
-	        return scope.Close(v8::Undefined());
+#ifdef NODE_ADDON_V12
+		v8::Local<v8::Value> argv[argc] = { v8::Number::New(True), v8::String::NewFromUtf8(isolate, "Json data parse fail.") };
+		cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+		return;
+#else
+		v8::Local<v8::Value> argv[argc] = { v8::Local<v8::Value>::New(v8::Number::New(True)) , v8::Local<v8::Value>::New(v8::String::New("Json data parse fail.")) };
+	    cb->Call(v8::Context::GetCurrent()->Global(), argc, argv);
+	    return scope.Close(v8::Undefined());
+#endif
 	}
 
 	int iCount = cJSON_GetArraySize(conf);
 	if(iCount == 0) {
-	        v8::Local<v8::Value> argv[argc] = { v8::Local<v8::Value>::New(v8::Boolean::New(True)) , v8::Local<v8::Value>::New(v8::String::New("Json data not exists.")) };
-	        cb->Call(v8::Context::GetCurrent()->Global(), argc, argv);
-	        return scope.Close(v8::Undefined());
+#ifdef NODE_ADDON_V12
+		v8::Local<v8::Value> argv[argc] = { v8::Number::New(True), v8::String::NewFromUtf8(isolate, "Json data not exists.") };
+		cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+		return;
+#else
+		v8::Local<v8::Value> argv[argc] = { v8::Local<v8::Value>::New(v8::Number::New(True)) , v8::Local<v8::Value>::New(v8::String::New("Json data not exists.")) };
+		cb->Call(v8::Context::GetCurrent()->Global(), argc, argv);
+	    return scope.Close(v8::Undefined());
+#endif
 	}
 
 	MD5 iMD5;
@@ -158,34 +197,45 @@ v8::Handle<v8::Value> InitMethod(const v8::Arguments& args) {
 	                    sprintf(rtmpUrl, "%s?nonce=%d&token=%s", rtmpUrl, nonce, iMD5.ToString().c_str());
 	            }
 	            sprintf(rtmpUrl, "%s/%s", rtmpUrl, stream->valuestring);
-	            //*env << "\t" << url->valuestring << "\t" << rtmpUrl << "\n";
 	            openURL(*env, url->valuestring, rtmpUrl);
 	            usleep(100*1000);
 	      }
 	}
 	cJSON_Delete(conf);
-	v8::Local<v8::Value> argv[argc-1] = { v8::Local<v8::Value>::New(v8::Undefined())  };
+
+#ifdef NODE_ADDON_V12
+	v8::Local<v8::Value> argv[argc-1] = { v8::Number::New(False) };
+	cb->Call(isolate->GetCurrentContext()->Global(), argc-1, argv);
+#else
+	v8::Local<v8::Value> argv[argc-1] = { v8::Local<v8::Value>::New(v8::Number::New(False)) };
 	cb->Call(v8::Context::GetCurrent()->Global(), argc-1, argv);
 	return scope.Close(v8::Undefined());
+#endif
 }
 
+#ifdef NODE_ADDON_V12
+void StartMethod(const v8::FunctionCallbackInfo<v8::Value>& args) {
+	v8::Isolate* isolate = v8::Isolate::GetCurrent();
+	v8::HandleScope scope(isolate);
+#else
 v8::Handle<v8::Value> StartMethod(const v8::Arguments& args) {
- 	v8::HandleScope scope;
- 	env->taskScheduler().doEventLoop(&eventLoopWatchVariable);
- 	return scope.Close(v8::Undefined());
-}
-
-v8::Handle<v8::Value> StopMethod(const v8::Arguments& args) {
 	v8::HandleScope scope;
-	eventLoopWatchVariable = 1;
-	return scope.Close(v8::Undefined());
+#endif
+ 	env->taskScheduler().doEventLoop(&eventLoopWatchVariable);
+#ifndef NODE_ADDON_V12
+ 	return scope.Close(v8::Undefined());
+#endif
 }
 
-//void Init(v8::Handle<v8::Object> exports, v8::Handle<v8::Object> module) {
-void Init(v8::Handle<v8::Object> exports) {
+void Init(v8::Handle<v8::Object> exports, v8::Handle<v8::Object> module) {
+#ifdef NODE_ADDON_V12
+	v8::Isolate* isolate = v8::Isolate::GetCurrent();
+	exports->Set(v8::String::NewFromUtf8(isolate, "init"), FunctionTemplate::New(isolate, InitMethod)->GetFunction());
+	exports->Set(v8::String::NewFromUtf8(isolate, "start"), FunctionTemplate::New(isolate, StartMethod)->GetFunction());
+#else
 	exports->Set(v8::String::NewSymbol("init"), v8::FunctionTemplate::New(InitMethod)->GetFunction());
 	exports->Set(v8::String::NewSymbol("start"), v8::FunctionTemplate::New(StartMethod)->GetFunction());
-	exports->Set(v8::String::NewSymbol("stop"), v8::FunctionTemplate::New(StopMethod)->GetFunction());
+#endif
 }
 
 NODE_MODULE(node_nvr_addon, Init)
