@@ -220,8 +220,8 @@ unsigned MPEG4VideoStreamParser::parse() {
 #ifdef DEBUG
     fprintf(stderr, "MPEG4VideoStreamParser::parse() EXCEPTION (This is normal behavior - *not* an error)\n");
 #endif
-    return 0;  // the parsing got interrupted
   }
+  return 0;  // the parsing got interrupted
 }
 
 #define VISUAL_OBJECT_SEQUENCE_START_CODE 0x000001B0
@@ -652,7 +652,7 @@ unsigned MPEG4VideoStreamParser::parseVideoObjectPlane() {
       setParseState(PARSING_VIDEO_OBJECT_PLANE);
     } else {
       usingSource()->envir() << "MPEG4VideoStreamParser::parseVideoObjectPlane(): Saw unexpected code "
-			     << (void*)next4Bytes << "\n";
+			     << (void*)(&next4Bytes) << "\n";
       setParseState(PARSING_VIDEO_OBJECT_PLANE); // the safest way to recover...
     }
     break;

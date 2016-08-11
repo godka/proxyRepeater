@@ -2,9 +2,13 @@
 #include "cMD5.hpp"
 #include "cJSON.h"
 
-#if ((defined NODE_ADDON) || (defined NODE_ADDON_V12))
+#ifdef NODE_V8_ADDON
 #include <node.h>
+#include <node_version.h>
 #include <v8.h>
+#if (NODE_MAJOR_VERSION == 0) && (NODE_MINOR_VERSION >= 12)
+#define NODE_VERSION_12		1
+#endif
 #endif
 
 //static unsigned rtspClientCount = 0;
@@ -30,7 +34,7 @@ cJSON* loadConfigFile(char const* path) {
 	return json;
 }
 
-#if ((!defined NODE_ADDON) && (!defined NODE_ADDON_V12))
+#ifndef NODE_V8_ADDON
 int main(int argc, char** argv) {
 	OutPacketBuffer::maxSize = DUMMY_SINK_RECEIVE_BUFFER_SIZE;
 	TaskScheduler* scheduler = BasicTaskScheduler::createNew();
@@ -95,11 +99,11 @@ int main(int argc, char** argv) {
 }
 #endif
 
-#if ((defined NODE_ADDON) || (defined NODE_ADDON_V12))
+#ifdef NODE_V8_ADDON
 
 UsageEnvironment* env ;
 
-#ifdef NODE_ADDON_V12
+#ifdef NODE_VERSION_12
 void InitMethod(const v8::FunctionCallbackInfo<v8::Value>& args) {
 	v8::Isolate* isolate = v8::Isolate::GetCurrent();
 	v8::HandleScope scope(isolate);
@@ -109,7 +113,7 @@ v8::Handle<v8::Value> InitMethod(const v8::Arguments& args) {
 #endif
 
 	if (args.Length() < 1) {
-#ifdef NODE_ADDON_V12
+#ifdef NODE_VERSION_12
 		isolate->ThrowException(v8::Exception::TypeError(v8::String::NewFromUtf8(isolate, "Wrong arguments")));
 		return;
 #else
@@ -119,7 +123,7 @@ v8::Handle<v8::Value> InitMethod(const v8::Arguments& args) {
 	}
 
 	if(!args[0]->IsString()) {
-#ifdef NODE_ADDON_V12
+#ifdef NODE_VERSION_12
 		isolate->ThrowException(v8::Exception::TypeError(v8::String::NewFromUtf8(isolate, "Wrong string type of arguments[0]")));
 		return;
 #else
@@ -129,7 +133,7 @@ v8::Handle<v8::Value> InitMethod(const v8::Arguments& args) {
 	}
 
 	if(!args[1]->IsFunction()) {
-#ifdef NODE_ADDON_V12
+#ifdef NODE_VERSION_12
 		isolate->ThrowException(v8::Exception::TypeError(v8::String::NewFromUtf8(isolate, "Wrong function of arguments[1]")));
 		return;
 #else
@@ -144,12 +148,12 @@ v8::Handle<v8::Value> InitMethod(const v8::Arguments& args) {
 	//printf("%s\n", *str);
 	cJSON* conf = cJSON_Parse(*str);
 	if(!conf) {
-#ifdef NODE_ADDON_V12
-		v8::Local<v8::Value> argv[argc] = { v8::Number::New(True), v8::String::NewFromUtf8(isolate, "Json data parse fail.") };
+#ifdef NODE_VERSION_12
+		v8::Local<v8::Value> argv[argc] = { v8::Boolean::New(isolate, True), v8::String::NewFromUtf8(isolate, "Json data parse fail.") };
 		cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
 		return;
 #else
-		v8::Local<v8::Value> argv[argc] = { v8::Local<v8::Value>::New(v8::Number::New(True)) , v8::Local<v8::Value>::New(v8::String::New("Json data parse fail.")) };
+		v8::Local<v8::Value> argv[argc] = { v8::Local<v8::Value>::New(v8::Boolean::New(True)) , v8::Local<v8::Value>::New(v8::String::New("Json data parse fail.")) };
 	    cb->Call(v8::Context::GetCurrent()->Global(), argc, argv);
 	    return scope.Close(v8::Undefined());
 #endif
@@ -157,12 +161,12 @@ v8::Handle<v8::Value> InitMethod(const v8::Arguments& args) {
 
 	int iCount = cJSON_GetArraySize(conf);
 	if(iCount == 0) {
-#ifdef NODE_ADDON_V12
-		v8::Local<v8::Value> argv[argc] = { v8::Number::New(True), v8::String::NewFromUtf8(isolate, "Json data not exists.") };
+#ifdef NODE_VERSION_12
+		v8::Local<v8::Value> argv[argc] = { v8::Boolean::New(isolate, True), v8::String::NewFromUtf8(isolate, "Json data not exists.") };
 		cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
 		return;
 #else
-		v8::Local<v8::Value> argv[argc] = { v8::Local<v8::Value>::New(v8::Number::New(True)) , v8::Local<v8::Value>::New(v8::String::New("Json data not exists.")) };
+		v8::Local<v8::Value> argv[argc] = { v8::Local<v8::Value>::New(v8::Boolean::New(True)) , v8::Local<v8::Value>::New(v8::String::New("Json data not exists.")) };
 		cb->Call(v8::Context::GetCurrent()->Global(), argc, argv);
 	    return scope.Close(v8::Undefined());
 #endif
@@ -203,17 +207,17 @@ v8::Handle<v8::Value> InitMethod(const v8::Arguments& args) {
 	}
 	cJSON_Delete(conf);
 
-#ifdef NODE_ADDON_V12
-	v8::Local<v8::Value> argv[argc-1] = { v8::Number::New(False) };
+#ifdef NODE_VERSION_12
+	v8::Local<v8::Value> argv[argc-1] = { v8::Boolean::New(isolate, False) };
 	cb->Call(isolate->GetCurrentContext()->Global(), argc-1, argv);
 #else
-	v8::Local<v8::Value> argv[argc-1] = { v8::Local<v8::Value>::New(v8::Number::New(False)) };
+	v8::Local<v8::Value> argv[argc-1] = { v8::Local<v8::Value>::New(v8::Boolean::New(False)) };
 	cb->Call(v8::Context::GetCurrent()->Global(), argc-1, argv);
 	return scope.Close(v8::Undefined());
 #endif
 }
 
-#ifdef NODE_ADDON_V12
+#ifdef NODE_VERSION_12
 void StartMethod(const v8::FunctionCallbackInfo<v8::Value>& args) {
 	v8::Isolate* isolate = v8::Isolate::GetCurrent();
 	v8::HandleScope scope(isolate);
@@ -222,16 +226,16 @@ v8::Handle<v8::Value> StartMethod(const v8::Arguments& args) {
 	v8::HandleScope scope;
 #endif
  	env->taskScheduler().doEventLoop(&eventLoopWatchVariable);
-#ifndef NODE_ADDON_V12
+#ifndef NODE_VERSION_12
  	return scope.Close(v8::Undefined());
 #endif
 }
 
 void Init(v8::Handle<v8::Object> exports, v8::Handle<v8::Object> module) {
-#ifdef NODE_ADDON_V12
+#ifdef NODE_VERSION_12
 	v8::Isolate* isolate = v8::Isolate::GetCurrent();
-	exports->Set(v8::String::NewFromUtf8(isolate, "init"), FunctionTemplate::New(isolate, InitMethod)->GetFunction());
-	exports->Set(v8::String::NewFromUtf8(isolate, "start"), FunctionTemplate::New(isolate, StartMethod)->GetFunction());
+	exports->Set(v8::String::NewFromUtf8(isolate, "init"), v8::FunctionTemplate::New(isolate, InitMethod)->GetFunction());
+	exports->Set(v8::String::NewFromUtf8(isolate, "start"), v8::FunctionTemplate::New(isolate, StartMethod)->GetFunction());
 #else
 	exports->Set(v8::String::NewSymbol("init"), v8::FunctionTemplate::New(InitMethod)->GetFunction());
 	exports->Set(v8::String::NewSymbol("start"), v8::FunctionTemplate::New(StartMethod)->GetFunction());
@@ -511,13 +515,6 @@ void streamTimerHandler(void* clientData) {
 
 void usage(UsageEnvironment& env) {
 	env << "Usage: " << progName << " [-c <conf>]\n";
-	/*
-	env << "\t\t[-H <rtmpHost>]\n";
-	env << "\t\t[-p <rtmpPort>]\n";
-	env << "\t\t[-a <appName>]\n";
-	env << "\t\t[-s <streamName>]\n";
-	env << "\t\t[-S <securityStr>]\n";
-	*/
 }
 
 void announceStream(RTSPClient* rtspClient) {
@@ -543,7 +540,7 @@ ourRTSPClient::~ourRTSPClient() {
 
 // Implementation of "StreamClientState":
 StreamClientState::StreamClientState()
-: iter(NULL), session(NULL), subsession(NULL), streamTimerTask(NULL), checkAliveTimerTask(NULL), duration(0.0) {
+: session(NULL), iter(NULL), subsession(NULL), streamTimerTask(NULL), checkAliveTimerTask(NULL), duration(0.0) {
 }
 
 StreamClientState::~StreamClientState() {
@@ -563,7 +560,7 @@ DummySink* DummySink::createNew(UsageEnvironment& env, MediaSubsession& subsessi
 }
 
 DummySink::DummySink(UsageEnvironment& env, MediaSubsession& subsession, char const* streamId) 
-: MediaSink(env), fSubsession(subsession),  fHaveWrittenFirstFrame(True), fSps(NULL), fPps(NULL) {
+: MediaSink(env), fSps(NULL), fPps(NULL), fSubsession(subsession), fHaveWrittenFirstFrame(True) {
 	fStreamId = strDup(streamId);
 	fReceiveBuffer = new u_int8_t[DUMMY_SINK_RECEIVE_BUFFER_SIZE];
 	rtmpClient = (ourRTMPClient*)((ourRTSPClient*)subsession.miscPtr)->publisher;

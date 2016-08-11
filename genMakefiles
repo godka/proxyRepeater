@@ -22,22 +22,14 @@ check_require() {
 	if  hash npm 2>/dev/null; then
 	    echo 'npm:' `npm -v`
 	else
-	    sudo apt-get install npm
+	    apt-get install npm
 	fi
 	
 	if  hash node-gyp 2>/dev/null; then
 	    echo 'node-gyp:' `node-gyp -v`
 	else
-	    npm install node-gyp -g
+	    npm install nan node-gyp -g
 	fi
-}
-
-default_gyp() {
-	echo {\
-  		\"targets\": [{ \
-      		\"target_name\" : \"node_nvr_addon\" \
-    	}] \
-	} > binding.gyp
 }
 
 if [ $# -ne 1 ]; then
@@ -87,10 +79,6 @@ cd src
 rm -f Makefile
 cat $PRO_DIR/config.$1 Makefile.tail > Makefile
 
-cd ../nodejs
-rm -f binding.gyp
-if [ ! -f  $1.gyp ]; then
-	default_gyp
-else
-    cp -f $1.gyp binding.gyp
-fi
+cd $PRO_DIR/node-gyp
+rm -f Makefile
+cat $PRO_DIR/config.$1 Makefile.tail > Makefile

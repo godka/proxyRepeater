@@ -17,7 +17,7 @@ all:
 	cd src; $(MAKE)
 
 node: all
-	cd nodejs; node-gyp configure build $(GYP_TARGET_ARCH) 
+	cd node-gyp; $(MAKE)
 	
 clean: cleanall
 	-rm -f $(LIVEMEDIA_DIR)/Makefile \
@@ -27,7 +27,7 @@ clean: cleanall
 	  $(SRS_LIBRTMP_DIR)/Makefile \
 	  $(SRS_LIBRTMP_DIR)/objs/Makefile \
 	  src/Makefile \
-	  nodejs/binding.gyp \
+	  node-gyp/Makefile \
 	  Makefile
 	  
 cleanall:
@@ -37,4 +37,4 @@ cleanall:
 	cd $(BASIC_USAGE_ENVIRONMENT_DIR); $(MAKE) clean
 	cd $(SRS_LIBRTMP_DIR); $(MAKE) clean
 	cd src; $(MAKE) clean
-	cd nodejs; node-gyp clean
+	cd node-gyp; $(MAKE) clean

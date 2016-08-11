@@ -182,8 +182,8 @@ unsigned MPEG1or2VideoStreamParser::parse() {
 #ifdef DEBUG
     fprintf(stderr, "MPEG1or2VideoStreamParser::parse() EXCEPTION (This is normal behavior - *not* an error)\n");
 #endif
-    return 0;  // the parsing got interrupted
   }
+  return 0;  // the parsing got interrupted
 }
 
 void MPEG1or2VideoStreamParser::saveCurrentVSH() {
@@ -460,7 +460,7 @@ unsigned MPEG1or2VideoStreamParser::parseSlice() {
     }
     default: {
       usingSource()->envir() << "MPEG1or2VideoStreamParser::parseSlice(): Saw unexpected code "
-			    << (void*)next4Bytes << "\n";
+			    << (void*)(&next4Bytes) << "\n";
       setParseState(PARSING_SLICE); // the safest way to recover...
       break;
     }
