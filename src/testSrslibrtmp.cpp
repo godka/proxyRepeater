@@ -6,7 +6,7 @@
 #include <node.h>
 #include <node_version.h>
 #include <v8.h>
-#if (NODE_MAJOR_VERSION == 0) && (NODE_MINOR_VERSION >= 12)
+#if (NODE_MAJOR_VERSION == 0 && NODE_MINOR_VERSION >= 12) || (NODE_MAJOR_VERSION > 0)
 #define NODE_VERSION_12		1
 #endif
 #endif

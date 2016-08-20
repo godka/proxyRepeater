@@ -1,4 +1,4 @@
-CROSS_TOOLCHAIN ?= /home/zk/raspberry/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64/bin
+CROSS_TOOLCHAIN ?= /home/zhongkui/raspberry/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64/bin
 CROSS_COMPILE = $(CROSS_TOOLCHAIN)/arm-linux-gnueabihf-
 
 COMPILE_OPTS =  $(INCLUDES) -fPIC -I. -O2 -DSOCKLEN_T=socklen_t -DLOCALE_NOT_USED -DNO_SSTREAM=1 -D_LARGEFILE_SOURCE=1 -D_FILE_OFFSET_BITS=64
