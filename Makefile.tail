@@ -19,7 +19,7 @@ all:
 node: all
 	cd node-gyp; $(MAKE)
 	
-clean: cleanall
+distclean: clean
 	-rm -f $(LIVEMEDIA_DIR)/Makefile \
 	  $(GROUPSOCK_DIR)/Makefile \
 	  $(USAGE_ENVIRONMENT_DIR)/Makefile \
@@ -30,7 +30,7 @@ clean: cleanall
 	  node-gyp/Makefile \
 	  Makefile
 	  
-cleanall:
+clean:
 	cd $(LIVEMEDIA_DIR); $(MAKE) clean
 	cd $(GROUPSOCK_DIR); $(MAKE) clean
 	cd $(USAGE_ENVIRONMENT_DIR); $(MAKE) clean

@@ -15,6 +15,7 @@ LIB_SUFFIX =           a
 LIBS_FOR_CONSOLE_APPLICATION = -lws2_32
 LIBS_FOR_GUI_APPLICATION = -lws2_32
 EXE =
+STRIP = strip
 
 GCC = $(CC)
 AR = ar

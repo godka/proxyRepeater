@@ -3,6 +3,7 @@
 	
 all: create_binding_file create_package_json
 	@npm install
+	@$(STRIP) ./build/Release/node_nvr_addon.node
 	npm test
 	
 clean:
@@ -21,7 +22,7 @@ ifneq ($(strip $(CROSS_COMPILE)),)
 endif
 	@echo \"targets\": [{ \
 	      \"target_name\" : \"node_nvr_addon\", \
-	      \"sources\" : [ \"../src/testSrslibrtmp.cpp\" , \"../src/cJSON.c\", \"../src/cMD5.cpp\" ], \
+	      \"sources\" : [ \"../src/testSrslibrtmp.cpp\" , \"../src/cJSON.c\"], \
 	      \"defines\" : [ \
 	          \"NODE_V8_ADDON\", \
 	          \"SOCKLEN_T=socklen_t\", \

@@ -7,7 +7,7 @@ SRS = ../srs-librtmp/objs
 SRS_INC = -I$(SRS)/include
 SRS_LIB = $(SRS)/lib/srs_librtmp.a
 
-LIBS = cJSON.$(OBJ) cMD5.$(OBJ) $(LIVE555_LIB) $(SRS_LIB) 
+LIBS = cJSON.$(OBJ) $(LIVE555_LIB) $(SRS_LIB) 
 
 PROGS = testSrslibrtmp
 
@@ -22,6 +22,7 @@ all: $(PROGS)
 	
 testSrslibrtmp : testSrslibrtmp.$(OBJ) $(LIBS)
 	$(CPLUSPLUS_COMPILER) $(COMPILE_OPTS) -o ../objs/$@ $< $(LIBS)
-
+	@$(STRIP) ../objs/$@
+	
 clean :
 	-rm -rf *.$(OBJ) ../objs/$(PROGS) core *.core *~ include/*~

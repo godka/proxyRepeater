@@ -1,12 +1,14 @@
 #include "testSrslibrtmp.hh"
-#include "cMD5.hpp"
 #include "cJSON.h"
+#include "ourMD5.hh"
 
 #ifdef NODE_V8_ADDON
 #include <node.h>
 #include <node_version.h>
 #include <v8.h>
-#if (NODE_MAJOR_VERSION == 0 && NODE_MINOR_VERSION >= 12) || (NODE_MAJOR_VERSION > 0)
+#include <pthread.h>
+
+#if NODE_MAJOR_VERSION == 0 && NODE_MINOR_VERSION == 12
 #define NODE_VERSION_12		1
 #endif
 #endif
@@ -57,7 +59,6 @@ int main(int argc, char** argv) {
 				*env << "File not found or json parse fail.\"" << optarg << "\"\n";
 			} else {
 				int iCount = cJSON_GetArraySize(conf);
-				MD5 iMD5;
 				struct timeval timeNow;
 				for (int i=0; i<iCount; ++i) {
 					cJSON* pItem = cJSON_GetArrayItem(conf, i);
@@ -74,11 +75,11 @@ int main(int argc, char** argv) {
 						sprintf(rtmpUrl, "%s", endpoint->valuestring);
 						if(NULL != password && strlen(password->valuestring) > 0) {
 							gettimeofday(&timeNow, NULL);
-							unsigned nonce = timeNow.tv_sec*1000 + timeNow.tv_usec/1000;
-							char token[50] = {'\0'};
-							sprintf(token, "%d%s%s", nonce, password->valuestring, "-1");
-							iMD5.GenerateMD5((unsigned char*)token, strlen(token));
-							sprintf(rtmpUrl, "%s?nonce=%d&token=%s", rtmpUrl, nonce, iMD5.ToString().c_str());
+							long nonce = timeNow.tv_sec*1000 + timeNow.tv_usec/1000;
+							char token[50] = {'\0'}, md5[33] = {'\0'};
+							sprintf(token, "%ld%s%s", nonce, password->valuestring, "-1");
+							our_MD5Data((unsigned char*)token, strlen(token), md5);
+							sprintf(rtmpUrl, "%s?nonce=%ld&token=%s", rtmpUrl, nonce, md5);
 						}
 						sprintf(rtmpUrl, "%s/%s", rtmpUrl, stream->valuestring);
 						//*env << "\t" << url->valuestring << "\t" << rtmpUrl << "\n";
@@ -87,21 +88,39 @@ int main(int argc, char** argv) {
 					}
 				}
 				cJSON_Delete(conf);
-				env->taskScheduler().doEventLoop(&eventLoopWatchVariable);
+				pid_t pid = fork();
+				if (pid < 0) {
+					printf("error in fork!");
+					exit(1);
+				} else if (pid == 0) {
+				 	env->taskScheduler().doEventLoop(&eventLoopWatchVariable);
+				} else
+					exit(0);
 			}
 			break;
 			case 'h': default:
-			usage(*env);
-			break;
+				usage(*env);
+				break;
 		}
 	}
 	return 0;
 }
-#endif
-
-#ifdef NODE_V8_ADDON
-
+#else
 UsageEnvironment* env ;
+
+void *daemonThreadFunc(void *args) {
+	pid_t pid = fork();
+	if (pid < 0) {
+		exit(1);
+	} else if (pid == 0) {
+		//printf("i am the child process, my process id is %d\n", getpid());
+		env->taskScheduler().doEventLoop(&eventLoopWatchVariable);
+	} else if (pid > 0){
+		//printf("i am the parent process, my process id is %d\n", getpid());
+		exit(0);
+	}
+	pthread_exit(0);
+}
 
 #ifdef NODE_VERSION_12
 void InitMethod(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -114,30 +133,30 @@ v8::Handle<v8::Value> InitMethod(const v8::Arguments& args) {
 
 	if (args.Length() < 1) {
 #ifdef NODE_VERSION_12
-		isolate->ThrowException(v8::Exception::TypeError(v8::String::NewFromUtf8(isolate, "Wrong arguments")));
+		isolate->ThrowException(v8::Exception::Error(v8::String::NewFromUtf8(isolate, "Wrong arguments")));
 		return;
 #else
-		v8::ThrowException(v8::Exception::TypeError(v8::String::New("Wrong arguments")));
+		v8::ThrowException(v8::Exception::Error(v8::String::New("Wrong arguments")));
 	    return scope.Close(v8::Undefined());
 #endif
 	}
 
 	if(!args[0]->IsString()) {
 #ifdef NODE_VERSION_12
-		isolate->ThrowException(v8::Exception::TypeError(v8::String::NewFromUtf8(isolate, "Wrong string type of arguments[0]")));
+		isolate->ThrowException(v8::Exception::TypeError(v8::String::NewFromUtf8(isolate, "Arguments[0] not string type")));
 		return;
 #else
-		v8::ThrowException(v8::Exception::TypeError(v8::String::New("Wrong string of arguments[0]")));
+		v8::ThrowException(v8::Exception::TypeError(v8::String::New("Arguments[0] not string type")));
 	    return scope.Close(v8::Undefined());
 #endif
 	}
 
 	if(!args[1]->IsFunction()) {
 #ifdef NODE_VERSION_12
-		isolate->ThrowException(v8::Exception::TypeError(v8::String::NewFromUtf8(isolate, "Wrong function of arguments[1]")));
+		isolate->ThrowException(v8::Exception::TypeError(v8::String::NewFromUtf8(isolate, "Arguments[1] not function type")));
 		return;
 #else
-	    v8::ThrowException(v8::Exception::TypeError(v8::String::New("Wrong function of arguments[1]")));
+	    ThrowException(v8::Exception::TypeError(v8::String::New("Arguments[1] not function type")));
 	    return scope.Close(v8::Undefined());
 #endif
 	}
@@ -153,8 +172,8 @@ v8::Handle<v8::Value> InitMethod(const v8::Arguments& args) {
 		cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
 		return;
 #else
-		v8::Local<v8::Value> argv[argc] = { v8::Local<v8::Value>::New(v8::Boolean::New(True)) , v8::Local<v8::Value>::New(v8::String::New("Json data parse fail.")) };
-	    cb->Call(v8::Context::GetCurrent()->Global(), argc, argv);
+		Local<v8::Value> argv[argc] = { v8::Local<v8::Value>::New(v8::Boolean::New(True)) , v8::Local<v8::Value>::New(v8::String::New("Json data parse fail.")) };
+	    cb->Call(Context::GetCurrent()->Global(), argc, argv);
 	    return scope.Close(v8::Undefined());
 #endif
 	}
@@ -166,13 +185,12 @@ v8::Handle<v8::Value> InitMethod(const v8::Arguments& args) {
 		cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
 		return;
 #else
-		v8::Local<v8::Value> argv[argc] = { v8::Local<v8::Value>::New(v8::Boolean::New(True)) , v8::Local<v8::Value>::New(v8::String::New("Json data not exists.")) };
-		cb->Call(v8::Context::GetCurrent()->Global(), argc, argv);
+		v8::Local<v8::Value> argv[argc] = { v8::Local<v8::Value>::New(v8::Boolean::New(True)), v8::Local<v8::Value>::New(v8::String::New("Json data not exists.")) };
+		cb->Call(Context::GetCurrent()->Global(), argc, argv);
 	    return scope.Close(v8::Undefined());
 #endif
 	}
 
-	MD5 iMD5;
 	struct timeval timeNow;
 
 	OutPacketBuffer::maxSize = DUMMY_SINK_RECEIVE_BUFFER_SIZE;
@@ -193,12 +211,12 @@ v8::Handle<v8::Value> InitMethod(const v8::Arguments& args) {
 	              //rtmp://host:port/app[?nonce=x&token=y]/stream
 	              sprintf(rtmpUrl, "%s", endpoint->valuestring);
 	              if(NULL != password && strlen(password->valuestring) > 0) {
-	                    gettimeofday(&timeNow, NULL);
-	                    unsigned nonce = timeNow.tv_sec*1000 + timeNow.tv_usec/1000;
-	                    char token[50] = {'\0'};
-	                    sprintf(token, "%d%s%s", nonce, password->valuestring, "-1");
-	                    iMD5.GenerateMD5((unsigned char*)token, strlen(token));
-	                    sprintf(rtmpUrl, "%s?nonce=%d&token=%s", rtmpUrl, nonce, iMD5.ToString().c_str());
+	            	  gettimeofday(&timeNow, NULL);
+	            	  long nonce = timeNow.tv_sec*1000 + timeNow.tv_usec/1000;
+	            	  char token[50] = {'\0'}, md5[33] = {'\0'};
+	            	  sprintf(token, "%ld%s%s", nonce, password->valuestring, "-1");
+	            	  our_MD5Data((unsigned char*)token, strlen(token), md5);
+	            	  sprintf(rtmpUrl, "%s?nonce=%ld&token=%s", rtmpUrl, nonce, md5);
 	            }
 	            sprintf(rtmpUrl, "%s/%s", rtmpUrl, stream->valuestring);
 	            openURL(*env, url->valuestring, rtmpUrl);
@@ -212,8 +230,8 @@ v8::Handle<v8::Value> InitMethod(const v8::Arguments& args) {
 	cb->Call(isolate->GetCurrentContext()->Global(), argc-1, argv);
 #else
 	v8::Local<v8::Value> argv[argc-1] = { v8::Local<v8::Value>::New(v8::Boolean::New(False)) };
-	cb->Call(v8::Context::GetCurrent()->Global(), argc-1, argv);
-	return scope.Close(v8::Undefined());
+	cb->Call(Context::GetCurrent()->Global(), argc-1, argv);
+	return scope.Close(Undefined());
 #endif
 }
 
@@ -225,9 +243,20 @@ void StartMethod(const v8::FunctionCallbackInfo<v8::Value>& args) {
 v8::Handle<v8::Value> StartMethod(const v8::Arguments& args) {
 	v8::HandleScope scope;
 #endif
- 	env->taskScheduler().doEventLoop(&eventLoopWatchVariable);
+	pthread_t id;
+	int ret = pthread_create(&id, NULL, daemonThreadFunc, NULL);
+	if(ret != 0){
+#ifdef NODE_VERSION_12
+		isolate->ThrowException(v8::Exception::Error(v8::String::NewFromUtf8(isolate, "Create child thread error!")));
+		return;
+#else
+	    v8::ThrowException(v8::Exception::Error(v8::String::New("Create child thread error!")));
+	    return scope.Close(v8::Undefined());
+#endif
+	}
+
 #ifndef NODE_VERSION_12
- 	return scope.Close(v8::Undefined());
+	return scope.Close(v8::Undefined());
 #endif
 }
 
