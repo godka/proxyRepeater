@@ -5,7 +5,7 @@
 #include "BasicUsageEnvironment.hh"
 #include "srs_librtmp.h"
 
-#define RTSP_CLIENT_VERBOSITY_LEVEL 0
+#define RTSP_CLIENT_VERBOSITY_LEVEL 1
 
 //MAX width*height*1.5  .e.g  IDR -> 1280x720x1.5
 #define DUMMY_SINK_RECEIVE_BUFFER_SIZE  (1024*1024+512*1024)
@@ -14,7 +14,7 @@
 
 //#define DEBUG
 
-void openURL(UsageEnvironment& env, char const* rtspURL, char const* rtmpURL);
+void openURL(UsageEnvironment& env, char const* rtspURL, char const* username,char const* password,char const* rtmpURL);
 
 void continueAfterDESCRIBE(RTSPClient* rtspClient, int resultCode, char* resultString);
 void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultString);
@@ -42,6 +42,7 @@ public:
         StreamClientState();
         virtual ~StreamClientState();
 public:
+		Authenticator* authenticator;	//add
         MediaSession* session;
         MediaSubsessionIterator* iter;
         MediaSubsession* subsession;
@@ -52,11 +53,12 @@ public:
 
 class ourRTSPClient: public RTSPClient {
 public:
-        static ourRTSPClient* createNew(UsageEnvironment& env, char const* rtspURL,
+	static ourRTSPClient* createNew(UsageEnvironment& env, char const* rtspURL, const char* username, const char* password,
                         char const* rtmpURL, int verbosityLevel = 0, char const* applicationName = NULL,
                         portNumBits tunnelOverHTTPPortNum = 0);
 protected:
-        ourRTSPClient(UsageEnvironment& env, char const* rtspURL, char const* rtmpURL, 
+	ourRTSPClient(UsageEnvironment& env, char const* rtspURL, const char* username, const char* password,
+						char const* rtmpURL, 
                         int verbosityLevel, char const* applicationName,
                         portNumBits tunnelOverHTTPPortNum);
 
@@ -64,9 +66,13 @@ protected:
 public:
         StreamClientState scs;
         void* publisher;        //ourRTMPClient
-        char const* endpoint() const { return fDestUrl; }       //rtmpURL
+		char const* endpoint() const { return fDestUrl; }       //rtmpURL
+		char const* username() const { return fUsername; }       //rtmpURL
+		char const* password() const { return fpassword; }       //rtmpURL
 private:
         char* fDestUrl;
+		char* fUsername;
+		char* fpassword;
 };
 
 class ourRTMPClient: public Medium {

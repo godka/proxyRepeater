@@ -1,7 +1,10 @@
 #include "testSrslibrtmp.hh"
 #include "cJSON.h"
 #include "ourMD5.hh"
-
+#include <stdio.h>
+#include <stdlib.h>
+#include "getopt.h"
+#include <string.h>
 #ifdef NODE_V8_ADDON
 #include <node.h>
 #include <node_version.h>
@@ -59,13 +62,15 @@ int main(int argc, char** argv) {
 				*env << "File not found or json parse fail.\"" << optarg << "\"\n";
 			} else {
 				int iCount = cJSON_GetArraySize(conf);
-				struct timeval timeNow;
+				//struct timeval timeNow;
 				for (int i=0; i<iCount; ++i) {
 					cJSON* pItem = cJSON_GetArrayItem(conf, i);
 					if (NULL == pItem)
 						continue;
 
 					cJSON* url = cJSON_GetObjectItem(pItem, "url");
+					cJSON* rtspuser = cJSON_GetObjectItem(pItem, "rtsp_user");
+					cJSON* rtsppass = cJSON_GetObjectItem(pItem, "rtsp_pass");
 					cJSON* endpoint = cJSON_GetObjectItem(pItem, "endpoint");
 					cJSON* stream = cJSON_GetObjectItem(pItem, "stream");
 					cJSON* password = cJSON_GetObjectItem(pItem, "password");
@@ -73,29 +78,29 @@ int main(int argc, char** argv) {
 						char rtmpUrl[120] = {'\0'};
 						//rtmp://host:port/app[?nonce=x&token=y]/stream
 						sprintf(rtmpUrl, "%s", endpoint->valuestring);
-						if(NULL != password && strlen(password->valuestring) > 0) {
-							gettimeofday(&timeNow, NULL);
-							long nonce = timeNow.tv_sec*1000 + timeNow.tv_usec/1000;
-							char token[50] = {'\0'}, md5[33] = {'\0'};
-							sprintf(token, "%ld%s%s", nonce, password->valuestring, "-1");
-							our_MD5Data((unsigned char*)token, strlen(token), md5);
-							sprintf(rtmpUrl, "%s?nonce=%ld&token=%s", rtmpUrl, nonce, md5);
-						}
+						//if(NULL != password && strlen(password->valuestring) > 0) {
+						//	gettimeofday(&timeNow, NULL);
+						//	long nonce = timeNow.tv_sec*1000 + timeNow.tv_usec/1000;
+						//	char token[50] = {'\0'}, md5[33] = {'\0'};
+						//	sprintf(token, "%ld%s%s", nonce, password->valuestring, "-1");
+						//	our_MD5Data((unsigned char*)token, strlen(token), md5);
+						//	sprintf(rtmpUrl, "%s?nonce=%ld&token=%s", rtmpUrl, nonce, md5);
+						//}
 						sprintf(rtmpUrl, "%s/%s", rtmpUrl, stream->valuestring);
 						//*env << "\t" << url->valuestring << "\t" << rtmpUrl << "\n";
-						openURL(*env, url->valuestring, rtmpUrl);
+						openURL(*env, url->valuestring, rtspuser->valuestring,rtsppass->valuestring,rtmpUrl);
 						usleep(100*1000);
 					}
 				}
 				cJSON_Delete(conf);
-				pid_t pid = fork();
-				if (pid < 0) {
-					printf("error in fork!");
-					exit(1);
-				} else if (pid == 0) {
-				 	env->taskScheduler().doEventLoop(&eventLoopWatchVariable);
-				} else
-					exit(0);
+				//pid_t pid = fork();
+				//if (pid < 0) {
+				//	printf("error in fork!");
+				//	exit(1);
+				//} else if (pid == 0) {
+				 env->taskScheduler().doEventLoop(&eventLoopWatchVariable);
+				//} else
+				//	exit(0);
 			}
 			break;
 			case 'h': default:
@@ -273,15 +278,15 @@ void Init(v8::Handle<v8::Object> exports, v8::Handle<v8::Object> module) {
 
 NODE_MODULE(node_nvr_addon, Init)
 #endif
-
-void openURL(UsageEnvironment& env, char const* rtspURL, char const* rtmpURL) {
-	ourRTSPClient* rtspClient = ourRTSPClient::createNew(env, rtspURL, rtmpURL, RTSP_CLIENT_VERBOSITY_LEVEL, progName);
+#undef close
+void openURL(UsageEnvironment& env, char const* rtspURL, char const* username, char const* password, char const* rtmpURL) {
+	ourRTSPClient* rtspClient = ourRTSPClient::createNew(env, rtspURL, username, password, rtmpURL, RTSP_CLIENT_VERBOSITY_LEVEL, progName);
 	if (rtspClient == NULL) {
 		env << "ERROR: Failed to create a RTSP client for URL \"" << rtspURL << "\": " << env.getResultMsg() << "\n";
 		return;
 	}
 	//++rtspClientCount;
-	rtspClient->sendDescribeCommand(continueAfterDESCRIBE);	
+	rtspClient->sendDescribeCommand(continueAfterDESCRIBE, ((ourRTSPClient*) rtspClient)->scs.authenticator);
 }
 
 void continueAfterDESCRIBE(RTSPClient* rtspClient, int resultCode, char* resultString) {
@@ -328,7 +333,7 @@ void continueAfterDESCRIBE(RTSPClient* rtspClient, int resultCode, char* resultS
 
 	// An unrecoverable error occurred with this stream.
 	shutdownStream(rtspClient);
-	usleep(5 * 1000 * 1000);
+	Sleep(5 * 1000 * 1000);
 }
 
 void setupNextSubsession(RTSPClient* rtspClient) {
@@ -353,7 +358,7 @@ void setupNextSubsession(RTSPClient* rtspClient) {
 			// By default, we request that the server stream its data using RTP/UDP.
 			// If, instead, you want to request that the server stream via RTP-over-TCP, change the following to True:
 			//#define REQUEST_STREAMING_OVER_TCP      True
-			rtspClient->sendSetupCommand(*scs.subsession, continueAfterSETUP, False, False);
+			rtspClient->sendSetupCommand(*scs.subsession, continueAfterSETUP, False, True, false, scs.authenticator);
 		}
 		return;
 	}
@@ -393,8 +398,8 @@ void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultStri
 		}
 
 		DummySink* dummySink = (DummySink*)scs.subsession->sink;
-		if( strcasecmp( scs.subsession->mediumName(), "video" ) == 0  &&
-			strcasecmp( scs.subsession->codecName(), "H264" ) == 0) {
+		if( strcmp( scs.subsession->mediumName(), "video" ) == 0  &&
+			strcmp( scs.subsession->codecName(), "H264" ) == 0) {
 			const char* spropStr = scs.subsession->attrVal_str("sprop-parameter-sets");
 		if( NULL != spropStr ) {
 			unsigned numSPropRecords = 0;
@@ -466,6 +471,8 @@ void shutdownStream(RTSPClient* rtspClient, int exitCode) {
 	StreamClientState& scs = client->scs;
 	char const* rtspUrl = strDup(rtspClient->url());
 	char const* rtmpUrl = strDup(client->endpoint());
+	char const* username = strDup(client->username());
+	char const* password = strDup(client->password());
 	
 	if (scs.session != NULL) {
 		Boolean someSubsessionsWereActive = False;
@@ -500,7 +507,7 @@ void shutdownStream(RTSPClient* rtspClient, int exitCode) {
 		//exit(exitCode);
 	}
 */
-	openURL(env, rtspUrl, rtmpUrl);
+	openURL(env, rtspUrl, username,password, rtmpUrl);
 }
 
 void subsessionAfterPlaying(void* clientData) {
@@ -552,15 +559,19 @@ void announceStream(RTSPClient* rtspClient) {
 }
 
 // Implementation of "ourRTSPClient":
-ourRTSPClient* ourRTSPClient::createNew(UsageEnvironment& env, char const* rtspURL, char const* rtmpURL,
+ourRTSPClient* ourRTSPClient::createNew(UsageEnvironment& env, char const* rtspURL, const char* username, const char* password, char const* rtmpURL,
 	int verbosityLevel, char const* applicationName, portNumBits tunnelOverHTTPPortNum) {
-	return new ourRTSPClient(env, rtspURL, rtmpURL, verbosityLevel, applicationName, tunnelOverHTTPPortNum);
+	return new ourRTSPClient(env, rtspURL, username,password,rtmpURL, verbosityLevel, applicationName, tunnelOverHTTPPortNum);
 }
 
-ourRTSPClient::ourRTSPClient(UsageEnvironment& env, char const* rtspURL,  char const* rtmpURL, int verbosityLevel,
+ourRTSPClient::ourRTSPClient(UsageEnvironment& env, char const* rtspURL, const char* username, const char* password, char const* rtmpURL, int verbosityLevel,
 	char const* applicationName, portNumBits tunnelOverHTTPPortNum) :
 RTSPClient(env, rtspURL, verbosityLevel, applicationName, tunnelOverHTTPPortNum, -1) {
+	Authenticator* au = new Authenticator(username, password);
+	scs.authenticator = au;
 	fDestUrl = strDup(rtmpURL);
+	fUsername = strDup(username);
+	fpassword = strDup(password);
 }
 
 ourRTSPClient::~ourRTSPClient() {
@@ -635,7 +646,7 @@ void DummySink::afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes
 		goto NEXT;
 	}
 
-	if (strcasecmp(fSubsession.mediumName(), "video" ) == 0 &&
+	if (strcmp(fSubsession.mediumName(), "video" ) == 0 &&
 		(isIDR(nal_unit_type) || isNonIDR(nal_unit_type))) {
 		fReceiveBuffer[0] = 0;	fReceiveBuffer[1] = 0;
 	fReceiveBuffer[2] = 0;	fReceiveBuffer[3] = 1;
