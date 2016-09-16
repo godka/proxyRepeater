@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
 				*env << "File not found or json parse fail.\"" << optarg << "\"\n";
 			} else {
 				int iCount = cJSON_GetArraySize(conf);
-				//struct timeval timeNow;
+				struct timeval timeNow;
 				for (int i=0; i<iCount; ++i) {
 					cJSON* pItem = cJSON_GetArrayItem(conf, i);
 					if (NULL == pItem)
@@ -78,14 +78,14 @@ int main(int argc, char** argv) {
 						char rtmpUrl[120] = {'\0'};
 						//rtmp://host:port/app[?nonce=x&token=y]/stream
 						sprintf(rtmpUrl, "%s", endpoint->valuestring);
-						//if(NULL != password && strlen(password->valuestring) > 0) {
-						//	gettimeofday(&timeNow, NULL);
-						//	long nonce = timeNow.tv_sec*1000 + timeNow.tv_usec/1000;
-						//	char token[50] = {'\0'}, md5[33] = {'\0'};
-						//	sprintf(token, "%ld%s%s", nonce, password->valuestring, "-1");
-						//	our_MD5Data((unsigned char*)token, strlen(token), md5);
-						//	sprintf(rtmpUrl, "%s?nonce=%ld&token=%s", rtmpUrl, nonce, md5);
-						//}
+						if(NULL != password && strlen(password->valuestring) > 0) {
+							gettimeofday(&timeNow, NULL);
+							long nonce = timeNow.tv_sec*1000 + timeNow.tv_usec/1000;
+							char token[50] = {'\0'}, md5[33] = {'\0'};
+							sprintf(token, "%ld%s%s", nonce, password->valuestring, "-1");
+							our_MD5Data((unsigned char*)token, strlen(token), md5);
+							sprintf(rtmpUrl, "%s?nonce=%ld&token=%s", rtmpUrl, nonce, md5);
+						}
 						sprintf(rtmpUrl, "%s/%s", rtmpUrl, stream->valuestring);
 						//*env << "\t" << url->valuestring << "\t" << rtmpUrl << "\n";
 						openURL(*env, url->valuestring, rtspuser->valuestring,rtsppass->valuestring,rtmpUrl);
