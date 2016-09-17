@@ -56,15 +56,16 @@ int main(int argc, char** argv) {
 	cJSON* conf;
 	while ((opt = getopt(argc, argv, "c:a:s:S:H:p:h")) != -1) {
 		switch (opt) {
-			case 'c':
+		case 'c':
 			//*env << "option c: " << optarg << "\n";
 			conf = loadConfigFile(optarg);
 			if (!conf) {
 				*env << "File not found or json parse fail.\"" << optarg << "\"\n";
-			} else {
+			}
+			else {
 				int iCount = cJSON_GetArraySize(conf);
 				struct timeval timeNow;
-				for (int i=0; i<iCount; ++i) {
+				for (int i = 0; i < iCount; ++i) {
 					cJSON* pItem = cJSON_GetArrayItem(conf, i);
 					if (NULL == pItem)
 						continue;
@@ -72,41 +73,48 @@ int main(int argc, char** argv) {
 					cJSON* url = cJSON_GetObjectItem(pItem, "url");
 					cJSON* rtspuser = cJSON_GetObjectItem(pItem, "rtsp_user");
 					cJSON* rtsppass = cJSON_GetObjectItem(pItem, "rtsp_pass");
+					cJSON* rtsptransport = cJSON_GetObjectItem(pItem, "rtsp_transport");
 					cJSON* endpoint = cJSON_GetObjectItem(pItem, "endpoint");
 					cJSON* stream = cJSON_GetObjectItem(pItem, "stream");
 					cJSON* password = cJSON_GetObjectItem(pItem, "password");
 					if (NULL != url && NULL != endpoint && NULL != stream) {
-						char rtmpUrl[120] = {'\0'};
+						char rtmpUrl[120] = { '\0' };
 						//rtmp://host:port/app[?nonce=x&token=y]/stream
 						sprintf(rtmpUrl, "%s", endpoint->valuestring);
-						if(NULL != password && strlen(password->valuestring) > 0) {
+						if (NULL != password && strlen(password->valuestring) > 0) {
 							gettimeofday(&timeNow, NULL);
-							long nonce = timeNow.tv_sec*1000 + timeNow.tv_usec/1000;
-							char token[50] = {'\0'}, md5[33] = {'\0'};
+							long nonce = timeNow.tv_sec * 1000 + timeNow.tv_usec / 1000;
+							char token[50] = { '\0' }, md5[33] = { '\0' };
 							sprintf(token, "%ld%s%s", nonce, password->valuestring, "-1");
-							our_MD5Data((unsigned char*)token, strlen(token), md5);
+							our_MD5Data((unsigned char*) token, strlen(token), md5);
 							sprintf(rtmpUrl, "%s?nonce=%ld&token=%s", rtmpUrl, nonce, md5);
 						}
 						sprintf(rtmpUrl, "%s/%s", rtmpUrl, stream->valuestring);
 						//*env << "\t" << url->valuestring << "\t" << rtmpUrl << "\n";
-						openURL(*env, url->valuestring, rtspuser->valuestring,rtsppass->valuestring,rtmpUrl);
-						usleep(100*1000);
+						char* tmpuser = rtspuser == NULL ? NULL: rtspuser->valuestring;
+						char* tmppass = rtsppass == NULL ? NULL : rtsppass->valuestring;
+						openURL(*env, url->valuestring, tmpuser,tmppass, rtmpUrl);
+						usleep(100 * 1000);
 					}
 				}
 				cJSON_Delete(conf);
-				//pid_t pid = fork();
-				//if (pid < 0) {
-				//	printf("error in fork!");
-				//	exit(1);
-				//} else if (pid == 0) {
-				 env->taskScheduler().doEventLoop(&eventLoopWatchVariable);
-				//} else
-				//	exit(0);
+#ifndef WIN32
+				pid_t pid = fork();
+				if (pid < 0) {
+					printf("error in fork!");
+					exit(1);
+				} else if (pid == 0) {
+					env->taskScheduler().doEventLoop(&eventLoopWatchVariable);
+				} else
+					exit(0);
+#else
+				env->taskScheduler().doEventLoop(&eventLoopWatchVariable);
+#endif
 			}
 			break;
-			case 'h': default:
-				usage(*env);
-				break;
+		case 'h': default:
+			usage(*env);
+			break;
 		}
 	}
 	return 0;
@@ -280,7 +288,7 @@ void Init(v8::Handle<v8::Object> exports, v8::Handle<v8::Object> module) {
 NODE_MODULE(node_nvr_addon, Init)
 #endif
 #undef close
-void openURL(UsageEnvironment& env, char const* rtspURL, char const* username, char const* password, char const* rtmpURL) {
+void openURL(UsageEnvironment& env, char const* rtspURL, char const* username, char const* password, char const* rtmpURL, Boolean viaTcp) {
 	ourRTSPClient* rtspClient = ourRTSPClient::createNew(env, rtspURL, username, password, rtmpURL, RTSP_CLIENT_VERBOSITY_LEVEL, progName);
 	if (rtspClient == NULL) {
 		env << "ERROR: Failed to create a RTSP client for URL \"" << rtspURL << "\": " << env.getResultMsg() << "\n";

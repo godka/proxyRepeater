@@ -14,7 +14,7 @@
 
 //#define DEBUG
 
-void openURL(UsageEnvironment& env, char const* rtspURL, char const* username,char const* password,char const* rtmpURL);
+void openURL(UsageEnvironment& env, char const* rtspURL, char const* username,char const* password,char const* rtmpURL,Boolean viaTcp = False);
 
 void continueAfterDESCRIBE(RTSPClient* rtspClient, int resultCode, char* resultString);
 void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultString);
@@ -48,6 +48,7 @@ public:
         MediaSubsession* subsession;
         TaskToken streamTimerTask;
         TaskToken checkAliveTimerTask;
+		bool TransportViaUdp;
         double duration;
 };
 
