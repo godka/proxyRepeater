@@ -95,62 +95,62 @@ private:
         ourRTSPClient* fSource;
 };
 
-class DummySink: public MediaSink {
+class DummySink : public MediaSink {
 public:
-        static DummySink* createNew(UsageEnvironment& env, MediaSubsession& subsession, char const* streamId = NULL);
+	static DummySink* createNew(UsageEnvironment& env, MediaSubsession& subsession, char const* streamId = NULL);
 protected:
-        DummySink(UsageEnvironment& env, MediaSubsession& subsession, char const* streamId);
-        virtual ~DummySink();
+	DummySink(UsageEnvironment& env, MediaSubsession& subsession, char const* streamId);
+	virtual ~DummySink();
 
-        static void afterGettingFrame(void* clientData, unsigned frameSize,
-                        unsigned numTruncatedBytes, struct timeval presentationTime,
-                        unsigned durationInMicroseconds);
+	static void afterGettingFrame(void* clientData, unsigned frameSize,
+		unsigned numTruncatedBytes, struct timeval presentationTime,
+		unsigned durationInMicroseconds);
 
-        void afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
-                        struct timeval presentationTime, unsigned durationInMicroseconds);
+	void afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
+	struct timeval presentationTime, unsigned durationInMicroseconds);
 
-        // redefined virtual functions:
-        virtual Boolean continuePlaying();
+	// redefined virtual functions:
+	virtual Boolean continuePlaying();
 public:
-        Boolean sendSpsPacket(u_int8_t* data, unsigned size, unsigned timestamp = 0) {
-                        if (fSps != NULL) { delete[] fSps; fSps = NULL; }
-                        fSpsSize = size+4;
-                        fSps = new u_int8_t[fSpsSize];
+	Boolean sendSpsPacket(u_int8_t* data, unsigned size, unsigned timestamp = 0) {
+		if (fSps != NULL) { delete [] fSps; fSps = NULL; }
+		fSpsSize = size + 4;
+		fSps = new u_int8_t[fSpsSize];
 
-                        fSps[0] = 0;    fSps[1] = 0;
-                        fSps[2] = 0;    fSps[3] = 1;
-                        memmove(fSps+4, data, size);
+		fSps[0] = 0;    fSps[1] = 0;
+		fSps[2] = 0;    fSps[3] = 1;
+		memmove(fSps + 4, data, size);
 
-                        if(timestamp == 0)
-                                return True;
-                        else 
-                                return  rtmpClient->sendH264FramePacket(fSps, fSpsSize, timestamp);
-        }
+		if (timestamp == 0)
+			return True;
+		else
+			return  rtmpClient->sendH264FramePacket(fSps, fSpsSize, timestamp);
+	}
 
-        Boolean sendPpsPacket(u_int8_t* data, unsigned size, unsigned timestamp = 0) {
-                        if (fPps != NULL) { delete[] fPps; fPps = NULL; }
-                        fPpsSize = size+4;
-                        fPps = new u_int8_t[fPpsSize];
+	Boolean sendPpsPacket(u_int8_t* data, unsigned size, unsigned timestamp = 0) {
+		if (fPps != NULL) { delete [] fPps; fPps = NULL; }
+		fPpsSize = size + 4;
+		fPps = new u_int8_t[fPpsSize];
 
-                        fPps[0] = 0;    fPps[1] = 0;
-                        fPps[2] = 0;    fPps[3] = 1;
-                        memmove(fPps+4, data, size);
+		fPps[0] = 0;    fPps[1] = 0;
+		fPps[2] = 0;    fPps[3] = 1;
+		memmove(fPps + 4, data, size);
 
-                        if(timestamp == 0)
-                                return True;
-                        else 
-                                return  rtmpClient->sendH264FramePacket(fPps, fPpsSize, timestamp);
-        }
+		if (timestamp == 0)
+			return True;
+		else
+			return  rtmpClient->sendH264FramePacket(fPps, fPpsSize, timestamp);
+	}
 private:
-        u_int8_t* fSps;
-        u_int8_t* fPps;
-        unsigned fSpsSize;
-        unsigned fPpsSize;
-        u_int8_t* fReceiveBuffer;
-        char* fStreamId;
-        MediaSubsession& fSubsession;
-        Boolean fHaveWrittenFirstFrame;
-        ourRTMPClient* rtmpClient ;
+	u_int8_t* fSps;
+	u_int8_t* fPps;
+	unsigned fSpsSize;
+	unsigned fPpsSize;
+	u_int8_t* fReceiveBuffer;
+	char* fStreamId;
+	MediaSubsession& fSubsession;
+	Boolean fHaveWrittenFirstFrame;
+	ourRTMPClient* rtmpClient;
 };
 
 UsageEnvironment& operator << (UsageEnvironment& env, const RTSPClient& rtspClient) {

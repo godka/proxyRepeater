@@ -397,7 +397,8 @@ void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultStri
 		env << *rtspClient << "Set up the \"" << *scs.subsession << "\" subsession (";
 		if (scs.subsession->rtcpIsMuxed()) {
 			env << "client port " << scs.subsession->clientPortNum();
-		} else {
+		}
+		else {
 			env << "client ports " << scs.subsession->clientPortNum() << "-" << scs.subsession->clientPortNum() + 1;
 		}
 		env << ")\n";
@@ -409,36 +410,43 @@ void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultStri
 			break;
 		}
 
-		DummySink* dummySink = (DummySink*)scs.subsession->sink;
-		if( strcmp( scs.subsession->mediumName(), "video" ) == 0  &&
-			strcmp( scs.subsession->codecName(), "H264" ) == 0) {
+		DummySink* dummySink = (DummySink*) scs.subsession->sink;
+		if (strcmp(scs.subsession->mediumName(), "video") == 0 &&
+			strcmp(scs.subsession->codecName(), "H264") == 0) {
 			const char* spropStr = scs.subsession->attrVal_str("sprop-parameter-sets");
-		if( NULL != spropStr ) {
-			unsigned numSPropRecords = 0;
-			SPropRecord* r = parseSPropParameterSets(spropStr, numSPropRecords);
-			for(unsigned n=0; n<numSPropRecords; ++n) {
-				u_int8_t nal_unit_type = r[n].sPropBytes[0] & 0x1F;
-				if(isSPS(nal_unit_type)){
-					dummySink->sendSpsPacket(r[n].sPropBytes, r[n].sPropLength);
-				} else if(isPPS(nal_unit_type)) {
-					dummySink->sendPpsPacket(r[n].sPropBytes, r[n].sPropLength);
+			if (NULL != spropStr) {
+				unsigned numSPropRecords = 0;
+				SPropRecord* r = parseSPropParameterSets(spropStr, numSPropRecords);
+				for (unsigned n = 0; n < numSPropRecords; ++n) {
+					u_int8_t nal_unit_type = r[n].sPropBytes[0] & 0x1F;
+					if (isSPS(nal_unit_type)){
+						dummySink->sendSpsPacket(r[n].sPropBytes, r[n].sPropLength);
+					}
+					else if (isPPS(nal_unit_type)) {
+						dummySink->sendPpsPacket(r[n].sPropBytes, r[n].sPropLength);
+					}
 				}
+				delete [] r;
 			}
-			delete[] r;
 		}
-	}
+		else{
+			if (strcmp(scs.subsession->mediumName(), "audio") == 0 &&
+				strcmp(scs.subsession->codecName(), "aac") == 0){
+				//do nothing now
+			}
+		}
 #ifdef DEBUG
-	env << *rtspClient << "Created a data sink for the \"" << *scs.subsession << "\" subsession\n";
+		env << *rtspClient << "Created a data sink for the \"" << *scs.subsession << "\" subsession\n";
 #endif
-	scs.subsession->sink->startPlaying(*(scs.subsession->readSource()), subsessionAfterPlaying, scs.subsession);
+		scs.subsession->sink->startPlaying(*(scs.subsession->readSource()), subsessionAfterPlaying, scs.subsession);
 
-	if (scs.subsession->rtcpInstance() != NULL) {
-		scs.subsession->rtcpInstance()->setByeHandler(subsessionByeHandler, scs.subsession);
-	}
-} while (0);
-delete[] resultString;
+		if (scs.subsession->rtcpInstance() != NULL) {
+			scs.subsession->rtcpInstance()->setByeHandler(subsessionByeHandler, scs.subsession);
+		}
+	} while (0);
+	delete [] resultString;
 
-setupNextSubsession(rtspClient);
+	setupNextSubsession(rtspClient);
 }
 
 void continueAfterPLAY(RTSPClient* rtspClient, int resultCode, char* resultString) {
@@ -470,7 +478,7 @@ void continueAfterPLAY(RTSPClient* rtspClient, int resultCode, char* resultStrin
 		announceStream(rtspClient);
 		success = True;
 	} while (0);
-	delete[] resultString;
+	delete [] resultString;
 
 	if (!success) {
 		shutdownStream(rtspClient);
@@ -479,14 +487,14 @@ void continueAfterPLAY(RTSPClient* rtspClient, int resultCode, char* resultStrin
 
 void shutdownStream(RTSPClient* rtspClient, int exitCode) {
 	UsageEnvironment& env = rtspClient->envir();
-	ourRTSPClient* client = (ourRTSPClient*)rtspClient;
+	ourRTSPClient* client = (ourRTSPClient*) rtspClient;
 	StreamClientState& scs = client->scs;
 	char const* rtspUrl = strDup(rtspClient->url());
 	char const* rtmpUrl = strDup(client->endpoint());
 	char const* username = strDup(client->username());
 	char const* password = strDup(client->password());
 	Boolean UseTcp = client->UseTcp();
-	
+
 	if (scs.session != NULL) {
 		Boolean someSubsessionsWereActive = False;
 		MediaSubsessionIterator iter(*scs.session);
@@ -509,17 +517,17 @@ void shutdownStream(RTSPClient* rtspClient, int exitCode) {
 			rtspClient->sendTeardownCommand(*scs.session, NULL);
 		}
 
-		Medium::close((ourRTMPClient*)client->publisher);
+		Medium::close((ourRTMPClient*) client->publisher);
 		client->publisher = NULL;
 	}
 
 	env << *rtspClient << "Closing the stream.\n";
 	Medium::close(rtspClient);
-/*
-	if (--rtspClientCount == 0) {
+	/*
+		if (--rtspClientCount == 0) {
 		//exit(exitCode);
-	}
-*/
+		}
+		*/
 	openURL(env, rtspUrl, username, password, rtmpUrl, UseTcp);
 }
 
@@ -635,58 +643,60 @@ void DummySink::afterGettingFrame(void* clientData, unsigned frameSize, unsigned
 
 // If you don't want to see debugging output for each received frame, then comment out the following line:
 void DummySink::afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
-		struct timeval presentationTime, unsigned /*durationInMicroseconds*/) {
+struct timeval presentationTime, unsigned /*durationInMicroseconds*/) {
 	u_int8_t nal_unit_type = fReceiveBuffer[4] & 0x1F; //0xFF;
-	unsigned timestamp = presentationTime.tv_sec*1000 + presentationTime.tv_usec/1000;
+	unsigned timestamp = presentationTime.tv_sec * 1000 + presentationTime.tv_usec / 1000;
 
-	if(fHaveWrittenFirstFrame) {
-		if(!isSPS(nal_unit_type) && !isPPS(nal_unit_type) && !isIDR(nal_unit_type))
+	if (fHaveWrittenFirstFrame) {
+		if (!isSPS(nal_unit_type) && !isPPS(nal_unit_type) && !isIDR(nal_unit_type))
 			goto NEXT;
-		else if(isSPS(nal_unit_type)) {
-			if (!sendSpsPacket(fReceiveBuffer+4, frameSize, timestamp)) 
+		else if (isSPS(nal_unit_type)) {
+			if (!sendSpsPacket(fReceiveBuffer + 4, frameSize, timestamp))
 				goto RECONNECT;
-		} else if(isPPS(nal_unit_type)) {
-			if (!sendPpsPacket(fReceiveBuffer+4, frameSize, timestamp))
+		}
+		else if (isPPS(nal_unit_type)) {
+			if (!sendPpsPacket(fReceiveBuffer + 4, frameSize, timestamp))
 				goto RECONNECT;
 			fHaveWrittenFirstFrame = False;
-		} else if(isIDR(nal_unit_type)) {
+		}
+		else if (isIDR(nal_unit_type)) {
 			//send sdp: sprop-parameter-sets
-			if (!rtmpClient->sendH264FramePacket(fSps, fSpsSize, timestamp)) 
+			if (!rtmpClient->sendH264FramePacket(fSps, fSpsSize, timestamp))
 				goto RECONNECT;
 
 			if (!rtmpClient->sendH264FramePacket(fPps, fPpsSize, timestamp))
 				goto RECONNECT;
-			
+
 			fHaveWrittenFirstFrame = False;
 		}
 		goto NEXT;
 	}
 
-	if (strcmp(fSubsession.mediumName(), "video" ) == 0 &&
+	if (strcmp(fSubsession.mediumName(), "video") == 0 &&
 		(isIDR(nal_unit_type) || isNonIDR(nal_unit_type))) {
 		fReceiveBuffer[0] = 0;	fReceiveBuffer[1] = 0;
-	fReceiveBuffer[2] = 0;	fReceiveBuffer[3] = 1;
-	if(!rtmpClient->sendH264FramePacket(fReceiveBuffer, frameSize+4, timestamp))
-		goto RECONNECT;
-} 
-goto NEXT;
+		fReceiveBuffer[2] = 0;	fReceiveBuffer[3] = 1;
+		if (!rtmpClient->sendH264FramePacket(fReceiveBuffer, frameSize + 4, timestamp))
+			goto RECONNECT;
+	}
+	goto NEXT;
 
 RECONNECT:
-fHaveWrittenFirstFrame = True;
-rtmpClient = ourRTMPClient::createNew(envir(), (ourRTSPClient*) fSubsession.miscPtr);
+	fHaveWrittenFirstFrame = True;
+	rtmpClient = ourRTMPClient::createNew(envir(), (ourRTSPClient*) fSubsession.miscPtr);
 NEXT:
- 	// Then continue, to request the next frame of data:
-continuePlaying();
+	// Then continue, to request the next frame of data:
+	continuePlaying();
 }
 
 Boolean DummySink::continuePlaying() {
-  	if (fSource == NULL) return False; // sanity check (should not happen)
+	if (fSource == NULL) return False; // sanity check (should not happen)
 
 	// Request the next frame of data from our input source.  "afterGettingFrame()" will get called later, when it arrives:
-  	fSource->getNextFrame(fReceiveBuffer+4,  DUMMY_SINK_RECEIVE_BUFFER_SIZE-4, afterGettingFrame,
-  		this, onSourceClosure, this);
-  	return True;
-  }
+	fSource->getNextFrame(fReceiveBuffer + 4, DUMMY_SINK_RECEIVE_BUFFER_SIZE - 4, afterGettingFrame,
+		this, onSourceClosure, this);
+	return True;
+}
 
 //Implementation of "ourRTMPClient":
   ourRTMPClient*  ourRTMPClient::createNew(UsageEnvironment& env, RTSPClient* rtspClient) {
@@ -742,38 +752,41 @@ Boolean DummySink::continuePlaying() {
   }
 
   Boolean ourRTMPClient::sendH264FramePacket(u_int8_t* data, unsigned size, unsigned timestamp) {
-  	do {
-  		if(NULL != data && size > 0) {
-  			if(fTimestamp == 0)
-  				fTimestamp = timestamp;
+	  do {
+		  if (NULL != data && size > 0) {
+			  if (fTimestamp == 0)
+				  fTimestamp = timestamp;
 
-  			pts = dts += (timestamp-fTimestamp);
-  			fTimestamp = timestamp;
+			  pts = dts += (timestamp - fTimestamp);
+			  fTimestamp = timestamp;
 
-  			int ret = srs_h264_write_raw_frames(rtmp, (char*)data, size, dts, pts);
-  			if (ret != 0) {
-  				if (srs_h264_is_dvbsp_error(ret)) {
-  					envir() << *fSource << "ignore drop video error, code=" << ret << "\n";
-  				} else if (srs_h264_is_duplicated_sps_error(ret)) {
-  					envir() << *fSource << "ignore duplicated sps, code=" << ret << "\n";
-  				} else if (srs_h264_is_duplicated_pps_error(ret)) {
-  					envir() << *fSource << "ignore duplicated pps, code=" << ret << "\n";
-  				} else {
-  					envir() << *fSource << "send h264 raw data failed. code=" << ret << "\n";
-  					break;
-  				}
-  			}
+			  int ret = srs_h264_write_raw_frames(rtmp, (char*) data, size, dts, pts);
+			  if (ret != 0) {
+				  if (srs_h264_is_dvbsp_error(ret)) {
+					  envir() << *fSource << "ignore drop video error, code=" << ret << "\n";
+				  }
+				  else if (srs_h264_is_duplicated_sps_error(ret)) {
+					  envir() << *fSource << "ignore duplicated sps, code=" << ret << "\n";
+				  }
+				  else if (srs_h264_is_duplicated_pps_error(ret)) {
+					  envir() << *fSource << "ignore duplicated pps, code=" << ret << "\n";
+				  }
+				  else {
+					  envir() << *fSource << "send h264 raw data failed. code=" << ret << "\n";
+					  break;
+				  }
+			  }
 #ifdef DEBUG
-  			u_int8_t nut = data[4] & 0x1F;
-  			envir() << *fSource << "sent packet: type=video"
-  			<< ", time=" << dts << ", size=" << size
-  			<< ", b[4]=" << (unsigned char*)data[4] << "("
-  			<< (isSPS(nut)? "SPS" : (isPPS(nut) ? "PPS" : (isIDR(nut) ? "I" : (isNonIDR(nut) ? "P" : "Unknown")))) << ")\n";
+			  u_int8_t nut = data[4] & 0x1F;
+			  envir() << *fSource << "sent packet: type=video"
+				  << ", time=" << dts << ", size=" << size
+				  << ", b[4]=" << (unsigned char*) data[4] << "("
+				  << (isSPS(nut) ? "SPS" : (isPPS(nut) ? "PPS" : (isIDR(nut) ? "I" : (isNonIDR(nut) ? "P" : "Unknown")))) << ")\n";
 #endif
-  		}
-  		return True;
-  	} while(0);
+		  }
+		  return True;
+	  } while (0);
 
-  	Medium::close(this);
-  	return False;
+	  Medium::close(this);
+	  return False;
   }
