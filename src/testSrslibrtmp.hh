@@ -48,18 +48,18 @@ public:
         MediaSubsession* subsession;
         TaskToken streamTimerTask;
         TaskToken checkAliveTimerTask;
-		bool TransportViaUdp;
+		bool TransportViaTcp;
         double duration;
 };
 
 class ourRTSPClient: public RTSPClient {
 public:
 	static ourRTSPClient* createNew(UsageEnvironment& env, char const* rtspURL, const char* username, const char* password,
-                        char const* rtmpURL, bool UseTCP = false,int verbosityLevel = 0, char const* applicationName = NULL,
+                        char const* rtmpURL, Boolean UseTCP = False,int verbosityLevel = 0, char const* applicationName = NULL,
                         portNumBits tunnelOverHTTPPortNum = 0);
 protected:
 	ourRTSPClient(UsageEnvironment& env, char const* rtspURL, const char* username, const char* password,
-		char const* rtmpURL, bool UseTCP,
+		char const* rtmpURL, Boolean UseTCP,
                         int verbosityLevel, char const* applicationName,
                         portNumBits tunnelOverHTTPPortNum);
 
@@ -70,10 +70,12 @@ public:
 		char const* endpoint() const { return fDestUrl; }       //rtmpURL
 		char const* username() const { return fUsername; }       //rtmpURL
 		char const* password() const { return fpassword; }       //rtmpURL
+		Boolean UseTcp() const { return fUseTCP; }       //rtmpURL
 private:
         char* fDestUrl;
 		char* fUsername;
 		char* fpassword;
+		Boolean fUseTCP;
 };
 
 class ourRTMPClient: public Medium {

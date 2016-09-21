@@ -96,7 +96,7 @@ int main(int argc, char** argv) {
 						Boolean tmpusetcp = False;
 						if (rtsptransport)
 							tmpusetcp = strcmp(rtsptransport->valuestring, "tcp") == 0 ? True : False;
-						openURL(*env, url->valuestring, tmpuser,tmppass, rtmpUrl);
+						openURL(*env, url->valuestring, tmpuser,tmppass, rtmpUrl,tmpusetcp);
 						usleep(100 * 1000);
 					}
 				}
@@ -370,7 +370,7 @@ void setupNextSubsession(RTSPClient* rtspClient) {
 			// By default, we request that the server stream its data using RTP/UDP.
 			// If, instead, you want to request that the server stream via RTP-over-TCP, change the following to True:
 			//#define REQUEST_STREAMING_OVER_TCP      True
-			rtspClient->sendSetupCommand(*scs.subsession, continueAfterSETUP, False, scs.TransportViaUdp, false, scs.authenticator);
+			rtspClient->sendSetupCommand(*scs.subsession, continueAfterSETUP, False, scs.TransportViaTcp, false, scs.authenticator);
 		}
 		return;
 	}
@@ -485,6 +485,7 @@ void shutdownStream(RTSPClient* rtspClient, int exitCode) {
 	char const* rtmpUrl = strDup(client->endpoint());
 	char const* username = strDup(client->username());
 	char const* password = strDup(client->password());
+	Boolean UseTcp = client->UseTcp();
 	
 	if (scs.session != NULL) {
 		Boolean someSubsessionsWereActive = False;
@@ -519,7 +520,7 @@ void shutdownStream(RTSPClient* rtspClient, int exitCode) {
 		//exit(exitCode);
 	}
 */
-	openURL(env, rtspUrl, username,password, rtmpUrl);
+	openURL(env, rtspUrl, username, password, rtmpUrl, UseTcp);
 }
 
 void subsessionAfterPlaying(void* clientData) {
@@ -571,21 +572,22 @@ void announceStream(RTSPClient* rtspClient) {
 }
 
 // Implementation of "ourRTSPClient":
-ourRTSPClient* ourRTSPClient::createNew(UsageEnvironment& env, char const* rtspURL, const char* username, const char* password, char const* rtmpURL, bool UseTCP,
+ourRTSPClient* ourRTSPClient::createNew(UsageEnvironment& env, char const* rtspURL, const char* username, const char* password, char const* rtmpURL, Boolean UseTCP,
 	int verbosityLevel, char const* applicationName, portNumBits tunnelOverHTTPPortNum) {
 	return new ourRTSPClient(env, rtspURL, username,password,rtmpURL, UseTCP,verbosityLevel, applicationName, tunnelOverHTTPPortNum);
 }
 
-ourRTSPClient::ourRTSPClient(UsageEnvironment& env, char const* rtspURL, const char* username, const char* password, char const* rtmpURL, bool UseTCP,
+ourRTSPClient::ourRTSPClient(UsageEnvironment& env, char const* rtspURL, const char* username, const char* password, char const* rtmpURL, Boolean UseTCP,
 	int verbosityLevel,
 	char const* applicationName, portNumBits tunnelOverHTTPPortNum) :
 RTSPClient(env, rtspURL, verbosityLevel, applicationName, tunnelOverHTTPPortNum, -1) {
 	Authenticator* au = new Authenticator(username, password);
 	scs.authenticator = au;
-	scs.TransportViaUdp = !UseTCP;
+	scs.TransportViaTcp = UseTCP;
 	fDestUrl = strDup(rtmpURL);
 	fUsername = strDup(username);
 	fpassword = strDup(password);
+	fUseTCP = UseTCP;
 }
 
 ourRTSPClient::~ourRTSPClient() {
