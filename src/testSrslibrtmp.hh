@@ -55,11 +55,11 @@ public:
 class ourRTSPClient: public RTSPClient {
 public:
 	static ourRTSPClient* createNew(UsageEnvironment& env, char const* rtspURL, const char* username, const char* password,
-                        char const* rtmpURL, int verbosityLevel = 0, char const* applicationName = NULL,
+                        char const* rtmpURL, bool UseTCP = false,int verbosityLevel = 0, char const* applicationName = NULL,
                         portNumBits tunnelOverHTTPPortNum = 0);
 protected:
 	ourRTSPClient(UsageEnvironment& env, char const* rtspURL, const char* username, const char* password,
-						char const* rtmpURL, 
+		char const* rtmpURL, bool UseTCP,
                         int verbosityLevel, char const* applicationName,
                         portNumBits tunnelOverHTTPPortNum);
 

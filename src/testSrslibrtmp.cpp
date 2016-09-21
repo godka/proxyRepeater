@@ -93,6 +93,9 @@ int main(int argc, char** argv) {
 						//*env << "\t" << url->valuestring << "\t" << rtmpUrl << "\n";
 						char* tmpuser = rtspuser == NULL ? NULL: rtspuser->valuestring;
 						char* tmppass = rtsppass == NULL ? NULL : rtsppass->valuestring;
+						Boolean tmpusetcp = False;
+						if (rtsptransport)
+							tmpusetcp = strcmp(rtsptransport->valuestring, "tcp") == 0 ? True : False;
 						openURL(*env, url->valuestring, tmpuser,tmppass, rtmpUrl);
 						usleep(100 * 1000);
 					}
@@ -289,7 +292,7 @@ NODE_MODULE(node_nvr_addon, Init)
 #endif
 #undef close
 void openURL(UsageEnvironment& env, char const* rtspURL, char const* username, char const* password, char const* rtmpURL, Boolean viaTcp) {
-	ourRTSPClient* rtspClient = ourRTSPClient::createNew(env, rtspURL, username, password, rtmpURL, RTSP_CLIENT_VERBOSITY_LEVEL, progName);
+	ourRTSPClient* rtspClient = ourRTSPClient::createNew(env, rtspURL, username, password, rtmpURL, viaTcp,RTSP_CLIENT_VERBOSITY_LEVEL, progName);
 	if (rtspClient == NULL) {
 		env << "ERROR: Failed to create a RTSP client for URL \"" << rtspURL << "\": " << env.getResultMsg() << "\n";
 		return;
@@ -342,7 +345,7 @@ void continueAfterDESCRIBE(RTSPClient* rtspClient, int resultCode, char* resultS
 
 	// An unrecoverable error occurred with this stream.
 	shutdownStream(rtspClient);
-	Sleep(5 * 1000 * 1000);
+	usleep(5 * 1000);
 }
 
 void setupNextSubsession(RTSPClient* rtspClient) {
@@ -367,7 +370,7 @@ void setupNextSubsession(RTSPClient* rtspClient) {
 			// By default, we request that the server stream its data using RTP/UDP.
 			// If, instead, you want to request that the server stream via RTP-over-TCP, change the following to True:
 			//#define REQUEST_STREAMING_OVER_TCP      True
-			rtspClient->sendSetupCommand(*scs.subsession, continueAfterSETUP, False, True, false, scs.authenticator);
+			rtspClient->sendSetupCommand(*scs.subsession, continueAfterSETUP, False, scs.TransportViaUdp, false, scs.authenticator);
 		}
 		return;
 	}
@@ -568,16 +571,18 @@ void announceStream(RTSPClient* rtspClient) {
 }
 
 // Implementation of "ourRTSPClient":
-ourRTSPClient* ourRTSPClient::createNew(UsageEnvironment& env, char const* rtspURL, const char* username, const char* password, char const* rtmpURL,
+ourRTSPClient* ourRTSPClient::createNew(UsageEnvironment& env, char const* rtspURL, const char* username, const char* password, char const* rtmpURL, bool UseTCP,
 	int verbosityLevel, char const* applicationName, portNumBits tunnelOverHTTPPortNum) {
-	return new ourRTSPClient(env, rtspURL, username,password,rtmpURL, verbosityLevel, applicationName, tunnelOverHTTPPortNum);
+	return new ourRTSPClient(env, rtspURL, username,password,rtmpURL, UseTCP,verbosityLevel, applicationName, tunnelOverHTTPPortNum);
 }
 
-ourRTSPClient::ourRTSPClient(UsageEnvironment& env, char const* rtspURL, const char* username, const char* password, char const* rtmpURL, int verbosityLevel,
+ourRTSPClient::ourRTSPClient(UsageEnvironment& env, char const* rtspURL, const char* username, const char* password, char const* rtmpURL, bool UseTCP,
+	int verbosityLevel,
 	char const* applicationName, portNumBits tunnelOverHTTPPortNum) :
 RTSPClient(env, rtspURL, verbosityLevel, applicationName, tunnelOverHTTPPortNum, -1) {
 	Authenticator* au = new Authenticator(username, password);
 	scs.authenticator = au;
+	scs.TransportViaUdp = !UseTCP;
 	fDestUrl = strDup(rtmpURL);
 	fUsername = strDup(username);
 	fpassword = strDup(password);
