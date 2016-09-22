@@ -457,9 +457,15 @@
     <ClInclude Include="..\live555\UsageEnvironment\include\UsageEnvironment_version.hh" />
     <ClInclude Include="..\src\cJSON.h" />
     <ClInclude Include="..\src\getopt.h" />
+    <ClInclude Include="..\src\pthread.h" />
+    <ClInclude Include="..\src\sched.h" />
+    <ClInclude Include="..\src\semaphore.h" />
     <ClInclude Include="..\src\srs_librtmp.h" />
     <ClInclude Include="..\src\tailor.h" />
     <ClInclude Include="..\src\testSrslibrtmp.hh" />
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="pthread.lib" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

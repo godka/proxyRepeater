@@ -33007,24 +33007,28 @@ struct Context
         return 0;
     }
     
-    ssize_t writev(int fd, const struct iovec *iov, int iovcnt)
-    {
-        ssize_t nwrite = 0;
-        for (int i = 0; i < iovcnt; i++) {
-            const struct iovec* current = iov + i;
-    
-            int nsent = ::send(fd, (char*)current->iov_base, current->iov_len, 0);
-            if (nsent < 0) {
-                return nsent;
-            }
-    
-            nwrite += nsent;
-            if (nsent == 0) {
-                return nwrite;
-            }
-        }
-        return nwrite;
-    }
+	ssize_t writev(int fd, const struct iovec *iov, int iovcnt)
+	{
+		ssize_t nwrite = 0;
+		char tmp[1024 * 500] = { 0 };
+		int index = 0;
+		for (int i = 0; i < iovcnt; i++) {
+			const struct iovec* current = iov + i;
+			memcpy(tmp + index, (char*) current->iov_base, current->iov_len);
+			index += current->iov_len;
+			//int nsent = ::send(fd, (char*)current->iov_base, current->iov_len, 0);
+			//if (nsent < 0) {
+			//    return nsent;
+			//}
+
+			//nwrite += nsent;
+			//if (nsent == 0) {
+			//    return nwrite;
+			//}
+		}
+		int nsent = ::send(fd, tmp, index, 0);
+		return nsent;
+	}
     
     ////////////////////////   strlcpy.c (modified) //////////////////////////
     

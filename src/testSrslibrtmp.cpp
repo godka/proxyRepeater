@@ -38,7 +38,112 @@ cJSON* loadConfigFile(char const* path) {
 	fclose(f);
 	return json;
 }
+typedef struct RtmpPullThreadStruct{
+	char in[120];
+	char out[120];
+	int delay;
+}RtmpPullThreadStruct;
+void* RtmpPullThread(void* pdata)
+{
+	RtmpPullThreadStruct* rdata;
+	if (!pdata){
+		return NULL;
+	}
+	rdata = (RtmpPullThreadStruct*) pdata;
+	//if (rdata->delay > 0){
+	//	usleep(rdata->delay * 1000 * 1000);
+	//}
+#ifdef WIN32
+	// startup socket for windows.
+	WSADATA WSAData;
+	if (WSAStartup(MAKEWORD(1, 1), &WSAData)) {
+		printf("WSAStartup failed.\n");
+		return NULL;
+	}
+#endif
+	srs_rtmp_t rtmp_in = NULL, rtmp_out = NULL;
+	//inital in stream
+	srs_human_trace("[in]rtmp url: %s", rdata->in);
+	rtmp_in = srs_rtmp_create(rdata->in);
 
+	if (srs_rtmp_handshake(rtmp_in) != 0) {
+		srs_human_trace("simple handshake failed.");
+		goto rtmp_destroy;
+	}
+	srs_human_trace("simple handshake success");
+
+	if (srs_rtmp_connect_app(rtmp_in) != 0) {
+		srs_human_trace("connect vhost/app failed.");
+		goto rtmp_destroy;
+	}
+	srs_human_trace("connect vhost/app success");
+
+	if (srs_rtmp_play_stream(rtmp_in) != 0) {
+		srs_human_trace("play stream failed.");
+		goto rtmp_destroy;
+	}
+	srs_human_trace("play stream success");
+	//inital out stream
+	srs_human_trace("[out]rtmp url: %s", rdata->out);
+	rtmp_out = srs_rtmp_create(rdata->out);
+
+	if (srs_rtmp_handshake(rtmp_out) != 0) {
+
+		srs_human_trace("simple handshake failed.");
+		goto rtmp_destroy;
+	}
+
+	if (srs_rtmp_connect_app(rtmp_out) != 0) {
+		srs_human_trace("connect vhost/app failed.");
+		goto rtmp_destroy;
+	}
+
+	int ret = srs_rtmp_publish_stream(rtmp_out);
+	if (ret != 0) {
+		srs_human_trace("publish stream failed.");
+		goto rtmp_destroy;
+	}
+	for (;;) {
+		int size;
+		char type;
+		char* data;
+		u_int32_t timestamp, pts;
+
+		if (srs_rtmp_read_packet(rtmp_in, &type, &timestamp, &data, &size) != 0) {
+			goto rtmp_destroy;
+		}
+		if (type == SRS_RTMP_TYPE_VIDEO){
+
+			if (srs_rtmp_write_packet(rtmp_out, type, timestamp, data, size) != 0){
+				goto rtmp_destroy;
+			}
+		}
+	}
+
+rtmp_destroy:
+	if (rtmp_in)
+		srs_rtmp_destroy(rtmp_in);
+	if (rtmp_out)
+		srs_rtmp_destroy(rtmp_out);
+#ifdef WIN32
+	// cleanup socket for windows.
+	WSACleanup();
+#endif
+	return NULL;
+}
+
+char* parseUrlHeader(const char* url){
+	int i = 0;
+	for (i = 0; i < strlen(url); i++){
+		if (url[i] == '\:'){
+			break;
+		}
+	}
+	char* ret = new char[i + 1];
+	memcpy(ret, url, i);
+	ret[i] = '\0';
+	return ret;
+}
 #ifndef NODE_V8_ADDON
 int main(int argc, char** argv) {
 	OutPacketBuffer::maxSize = DUMMY_SINK_RECEIVE_BUFFER_SIZE;
@@ -90,14 +195,34 @@ int main(int argc, char** argv) {
 							sprintf(rtmpUrl, "%s?nonce=%ld&token=%s", rtmpUrl, nonce, md5);
 						}
 						sprintf(rtmpUrl, "%s/%s", rtmpUrl, stream->valuestring);
-						//*env << "\t" << url->valuestring << "\t" << rtmpUrl << "\n";
-						char* tmpuser = rtspuser == NULL ? NULL: rtspuser->valuestring;
-						char* tmppass = rtsppass == NULL ? NULL : rtsppass->valuestring;
-						Boolean tmpusetcp = False;
-						if (rtsptransport)
-							tmpusetcp = strcmp(rtsptransport->valuestring, "tcp") == 0 ? True : False;
-						openURL(*env, url->valuestring, tmpuser,tmppass, rtmpUrl,tmpusetcp);
-						usleep(100 * 1000);
+						char* urlheader = parseUrlHeader(url->valuestring);
+						if (strcmp(urlheader, "rtsp") == 0){
+							//*env << "\t" << url->valuestring << "\t" << rtmpUrl << "\n";
+							char* tmpuser = rtspuser == NULL ? NULL : rtspuser->valuestring;
+							char* tmppass = rtsppass == NULL ? NULL : rtsppass->valuestring;
+							Boolean tmpusetcp = False;
+							if (rtsptransport)
+								tmpusetcp = strcmp(rtsptransport->valuestring, "tcp") == 0 ? True : False;
+							openURL(*env, url->valuestring, tmpuser, tmppass, rtmpUrl, tmpusetcp);
+							usleep(100 * 1000);
+						}
+						else{
+							if (strcmp(urlheader, "rtmp") == 0){
+								//RtmpPullThread
+								cJSON* delaytime = cJSON_GetObjectItem(pItem, "delay");
+								pthread_t id;
+								RtmpPullThreadStruct st = { 0 };
+								strcpy(st.in, url->valuestring);
+								strcpy(st.out, rtmpUrl);
+								if (delaytime)
+									st.delay = delaytime->valueint;
+								int ret = pthread_create(&id, NULL, RtmpPullThread, &st);
+								if (ret != 0){
+									printf("Create Failed!\n");
+								}
+							}
+						}
+						delete[] urlheader;
 					}
 				}
 				cJSON_Delete(conf);
@@ -431,8 +556,9 @@ void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultStri
 		}
 		else{
 			if (strcmp(scs.subsession->mediumName(), "audio") == 0 &&
-				strcmp(scs.subsession->codecName(), "aac") == 0){
+				strcmp(scs.subsession->codecName(), "PCMA") == 0){
 				//do nothing now
+				//printf("hello mike\n");
 			}
 		}
 #ifdef DEBUG
@@ -567,7 +693,7 @@ void streamTimerHandler(void* clientData) {
 	ourRTSPClient* rtspClient = (ourRTSPClient*)clientData;
 	StreamClientState& scs = rtspClient->scs; 
 	scs.streamTimerTask = NULL;
-	shutdownStream(rtspClient);
+	//shutdownStream(rtspClient);
 }
 
 void usage(UsageEnvironment& env) {
@@ -776,13 +902,13 @@ Boolean DummySink::continuePlaying() {
 					  break;
 				  }
 			  }
-#ifdef DEBUG
-			  u_int8_t nut = data[4] & 0x1F;
-			  envir() << *fSource << "sent packet: type=video"
-				  << ", time=" << dts << ", size=" << size
-				  << ", b[4]=" << (unsigned char*) data[4] << "("
-				  << (isSPS(nut) ? "SPS" : (isPPS(nut) ? "PPS" : (isIDR(nut) ? "I" : (isNonIDR(nut) ? "P" : "Unknown")))) << ")\n";
-#endif
+//#ifdef DEBUG
+//			  u_int8_t nut = data[4] & 0x1F;
+//			  envir() << *fSource << "sent packet: type=video"
+//				  << ", time=" << dts << ", size=" << size
+//				  << ", b[4]=" << (unsigned char*) data[4] << "("
+//				  << (isSPS(nut) ? "SPS" : (isPPS(nut) ? "PPS" : (isIDR(nut) ? "I" : (isNonIDR(nut) ? "P" : "Unknown")))) << ")\n";
+//#endif
 		  }
 		  return True;
 	  } while (0);

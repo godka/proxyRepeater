@@ -1199,5 +1199,17 @@
     <ClInclude Include="..\src\srs_librtmp.h">
       <Filter>Header Files\main\srs_librtmp</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\pthread.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\sched.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\semaphore.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="pthread.lib" />
   </ItemGroup>
 </Project>

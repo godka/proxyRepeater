@@ -4,13 +4,20 @@
 #include "liveMedia.hh"
 #include "BasicUsageEnvironment.hh"
 #include "srs_librtmp.h"
+#ifdef WIN32
+//Ws2_32.lib
+#	define PTW32_STATIC_LIB 1
+#   pragma comment(lib, "Ws2_32")
+#   pragma comment(lib, "pthread")
+#endif
+#include "pthread.h"
 
-#define RTSP_CLIENT_VERBOSITY_LEVEL 1
+#define RTSP_CLIENT_VERBOSITY_LEVEL 0
 
 //MAX width*height*1.5  .e.g  IDR -> 1280x720x1.5
 #define DUMMY_SINK_RECEIVE_BUFFER_SIZE  (1024*1024+512*1024)
 
-#define CHECK_ALIVE_TASK_TIMER_INTERVAL 30*1000*1000
+#define CHECK_ALIVE_TASK_TIMER_INTERVAL 10*1000*1000
 
 //#define DEBUG
 
