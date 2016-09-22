@@ -43,20 +43,29 @@
     <Filter Include="Source Files\UsageEnvironment">
       <UniqueIdentifier>{478f9efc-0f6f-4faa-bf3f-98b56022c775}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\main\cJson">
+      <UniqueIdentifier>{117ee20b-397c-40df-a2ac-a867b36b0f17}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\main\getopt">
+      <UniqueIdentifier>{352cd5c7-6233-44ab-b57d-5bc7764fbef9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\main\srs_librtmp">
+      <UniqueIdentifier>{5e37322d-a07a-44e6-a70b-21a27200543c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\main\cJson">
+      <UniqueIdentifier>{24bb1f6c-3b0e-44e7-8e4e-9db516aa8784}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\main\getopt">
+      <UniqueIdentifier>{babf8a63-9b72-4193-9248-94b70a0acff3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\main\srs_librtmp">
+      <UniqueIdentifier>{0e2e34ed-12e9-48f1-9684-adb79f0b802d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\cJSON.c">
-      <Filter>Source Files\main</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\getopt.c">
-      <Filter>Source Files\main</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\srs_librtmp.cpp">
-      <Filter>Source Files\main</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\testSrslibrtmp.cpp">
       <Filter>Source Files\main</Filter>
     </ClCompile>
@@ -603,20 +612,17 @@
     <ClCompile Include="..\live555\UsageEnvironment\UsageEnvironment.cpp">
       <Filter>Source Files\UsageEnvironment</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\cJSON.c">
+      <Filter>Source Files\main\cJson</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\getopt.c">
+      <Filter>Source Files\main\getopt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\srs_librtmp.cpp">
+      <Filter>Source Files\main\srs_librtmp</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\cJSON.h">
-      <Filter>Header Files\main</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\getopt.h">
-      <Filter>Header Files\main</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\srs_librtmp.h">
-      <Filter>Header Files\main</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\tailor.h">
-      <Filter>Header Files\main</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\testSrslibrtmp.hh">
       <Filter>Header Files\main</Filter>
     </ClInclude>
@@ -1180,6 +1186,18 @@
     </ClInclude>
     <ClInclude Include="..\live555\UsageEnvironment\include\UsageEnvironment_version.hh">
       <Filter>Header Files\UsageEnvironment</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\cJSON.h">
+      <Filter>Header Files\main\cJson</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\tailor.h">
+      <Filter>Header Files\main\getopt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\getopt.h">
+      <Filter>Header Files\main\getopt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\srs_librtmp.h">
+      <Filter>Header Files\main\srs_librtmp</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
